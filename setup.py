@@ -1,7 +1,7 @@
 import setuptools
 
 # read in version of canela package
-with open('canela/_version.py', 'r') as fid:
+with open('fpec/_version.py', 'r') as fid:
     # this will create the __version__ variable to be used below
     exec(fid.read())
 
