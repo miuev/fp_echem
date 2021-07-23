@@ -8,8 +8,8 @@ with open('fpec/_version.py', 'r') as fid:
 # use README file to create long description of package
 # ignore images (lines that start with '![')
 with open('README.md', 'r') as readme:
-    description = ''.join([i for i in readme.readlines()
-                           if not i.startswith('![')])
+    long_description = ''.join([i for i in readme.readlines()
+                                if not i.startswith('![')])
 
 setuptools.setup(
     name="fpec",
