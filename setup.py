@@ -12,7 +12,7 @@ with open('README.md', 'r') as readme:
                                 if not i.startswith('![')])
 
 setuptools.setup(
-    name="fpec",
+    name="fp_echem",
     version=__version__,
     author="Evan Miu",
     author_email="evm@pitt.edu",

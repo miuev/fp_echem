@@ -1,0 +1,11 @@
+README.md
+setup.py
+fp_echem.egg-info/PKG-INFO
+fp_echem.egg-info/SOURCES.txt
+fp_echem.egg-info/dependency_links.txt
+fp_echem.egg-info/requires.txt
+fp_echem.egg-info/top_level.txt
+fpec/__init__.py
+fpec/_version.py
+fpec/curpot.py
+fpec/mkm.py
