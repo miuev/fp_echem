@@ -98,10 +98,10 @@ class Reaction:
         forward = np.product(np.power(self.reactants, self.reactant_stoi)) * self.kf
         reverse = np.product(np.power(self.products, self.product_stoi)) * self.kr
         diff = forward - reverse
-        for r in self.reactants:
-            r.diff -= diff
-        for p in self.products:
-            p.diff += diff
+        for r,s in zip(self.reactants,self.reactant_stoi):
+            r.diff -= diff/s
+        for p,s in zip(self.products,self.product_stoi):
+            p.diff += diff/s
 
 class CoupledReactions:
     def __init__(self, reactions: List[Species]) -> None:
@@ -207,7 +207,7 @@ def create_network(path_to_setup):
                     compositions.append(data)
             
         
-        for i, species in enumerate(fpec.cls_sol.MetaSpecies._unique_species):
+        for i, species in enumerate(fpec.rxn_network.MetaSpecies._unique_species):
             if species == re.search(r'^(.+?)\_o',compositions[i][0]).group(1):
                 globals()[f'{species}'].concentration = compositions[i][2]
 
@@ -215,12 +215,4 @@ def create_network(path_to_setup):
         
         
 
-    return fpec.cls_sol.MetaSpecies._unique_species, all_rxns
-
-
-
-    # rxn1 = Reaction([A, B], [C], kf=0.2, kr=0.02)
-    # rxn2 = Reaction([C, D], [E], kf=0.1, kr=0.1)
-    # coupled_rxns = CoupledReactions(reactions=[rxn1, rxn2])
-    # coupled_rxns.solve()
-    # coupled_rxns.plot_results()
+    return fpec.rxn_network.MetaSpecies._unique_species, all_rxns
