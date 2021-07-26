@@ -177,7 +177,7 @@ def create_network(path_to_setup):
                         try:
                             species = re.search(r'\[([A-Za-z0-9_]+)\]',entry).group(1)
                             try:
-                                stoi = re.search(r'([A-Za-z0-9_]+)\[',entry).group(1)
+                                stoi = re.search(r'([0-9_]+)\[',entry).group(1)
                             except AttributeError:
                                 stoi = 1
                             if p == False:
