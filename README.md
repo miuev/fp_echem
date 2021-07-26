@@ -12,3 +12,9 @@ Two approaches are included.
     - Energies must be calculated using CP-DFT.
     - Charge transfer coefficients are not relevant to calculations, and a CP-DFT energy must be obtained for each potential of interest.
     - Discrete current-potential relationships are output, useful for comparison to constant-current or constant-potential activity measurements.
+
+### TO-DO
+- change usage of `globals()` to `dicts` in `fpec.rxn_network`
+- change input file type to `.yaml` instead of `.txt`
+- allow for potential dependent rate constants (energies)
+- explicit accounting of site numbers (adsoprtion isotherms)

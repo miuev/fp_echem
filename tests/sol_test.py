@@ -1,3 +1,5 @@
+import pathlib
+
 import pytest
 
 import fpec.rxn_network
@@ -54,10 +56,7 @@ def run(rxn = rxn, initial_comps = initial_comps, t = t):
 
 def test_network_solution():
     # reading in from .txt setup should yield same solution as hard code
-    try:
-        a, b = fpec.rxn_network.create_network('reactions.txt')
-    except FileNotFoundError:
-        a, b = fpec.rxn_network.create_network('tests/reactions.txt')
+    a, b = fpec.rxn_network.create_network(pathlib.Path(__file__).parent / 'reactions.txt')
     coupled_rxns = fpec.rxn_network.CoupledReactions(b)
     cls_sol = coupled_rxns.solve(tmax = 5, dt = 0.01)
     dir_sol = run()
