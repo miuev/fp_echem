@@ -1,0 +1,19 @@
+T: 298.15
+A0: 6
+B0: 2
+
+rxn1:
+    name: 'rxn1'
+    eqn: "2[A] + [B] -> 2[C]"
+    Af: 1E12
+    Ar: 1E1
+    energy: -0.2
+    barrier: 0.4
+
+rxn2:
+    name: 'rxn2'
+    eqn: "[C] + [A] -> [D]"
+    Af: 1E12
+    Ar: 1E1
+    energy: 0.1
+    barrier: 0.5

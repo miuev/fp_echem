@@ -65,17 +65,7 @@ class Reaction:
         self.barrier = barrier
         self.T = T 
 
-        act_fwd = np.max([self.energy,self.barrier],axis=0)
-
-        reverse_activation = self.barrier - self.energy
-        
-        if reverse_activation <= 0:
-            act_rev = 0
-        else:
-            act_rev = reverse_activation
-        
-        self.actf = act_fwd
-        self.actr = act_rev
+    
 
         if reactant_stoi is None:
             self.reactant_stoi = np.ones(len(self.reactants))
@@ -86,6 +76,20 @@ class Reaction:
         else:
             self.product_stoi = np.array(product_stoi)
     
+    @property
+    def actf(self):
+        return np.max([self.energy,self.barrier],axis=0)
+    @property
+    def actr(self):
+        reverse_activation = self.barrier - self.energy
+    
+        if reverse_activation <= 0:
+            act_rev = 0
+        else:
+            act_rev = reverse_activation
+
+        return act_rev
+
     @property
     def kf(self):
         return self.Af*np.exp(-self.actf/(k_b*self.T))
@@ -104,7 +108,7 @@ class Reaction:
             p.diff += diff/s
 
 class CoupledReactions:
-    def __init__(self, reactions: List[Species]) -> None:
+    def __init__(self, reactions: List[Reaction]) -> None:
         self.reactions = reactions
         
         # get all unique species from the reactions
@@ -151,6 +155,8 @@ class CoupledReactions:
 
 def create_network(path_to_setup):
     
+    startup = True
+
     all_rxns = []
     compositions = []
 
@@ -164,7 +170,7 @@ def create_network(path_to_setup):
                 if data[0] == 'T':
                     T = float(data[2])
                 elif any(('[' or ']') in entry for entry in data):
-                    if 'rxn0' in globals():
+                    if startup == False:
                         all_rxns.append(globals()[f'rxn{len(all_rxns)}'])
                         
                     reactants = []
@@ -172,14 +178,21 @@ def create_network(path_to_setup):
                     products = []
                     product_stoi = []
                     p = False
+                    surface = False
 
                     for entry in data:
                         try:
-                            species = re.search(r'\[([A-Za-z0-9_]+)\]',entry).group(1)
+                            species = re.search(r'\[([A-Za-z0-9\*\+\-_]+)\]',entry).group(1)
                             try:
                                 stoi = re.search(r'([0-9_]+)\[',entry).group(1)
                             except AttributeError:
                                 stoi = 1
+                            if species == '*':
+                                species = 'sites'
+                                surface = True
+                            if '*' in species:
+                                species = re.sub('\*','_s',species)
+                                surface = True                            
                             if p == False:
                                 globals()[f'{species}'] = Species(species)
                                 reactants.append(globals()[f'{species}'])
@@ -191,8 +204,9 @@ def create_network(path_to_setup):
                         except AttributeError:
                             if entry == '->':
                                 p = True
-
-                    globals()[f'rxn{len(all_rxns)}'] = Reaction(name = f'rxn{len(all_rxns)}', T = T, reactants = reactants, products = products,
+                    
+                    startup = False
+                    globals()[f'rxn{int(len(all_rxns))}'] = Reaction(name = f'rxn{len(all_rxns)}', T = T, reactants = reactants, products = products,
                                                         reactant_stoi = reactant_stoi, product_stoi = product_stoi)
                 
                 elif data[0] == 'Af':
@@ -207,12 +221,13 @@ def create_network(path_to_setup):
                     compositions.append(data)
             
         
-        for i, species in enumerate(fpec.rxn_network.MetaSpecies._unique_species):
-            if species == re.search(r'^(.+?)\_o',compositions[i][0]).group(1):
-                globals()[f'{species}'].concentration = compositions[i][2]
+        for species in fpec.rxn_network.MetaSpecies._unique_species:
+            for i in np.arange(len(compositions)):
+                if species == re.search(r'^(.+?)\_o',compositions[i][0]).group(1):
+                    globals()[f'{species}'].concentration = compositions[i][2]
+                elif 'sites' == re.search(r'^(.+?)\_o',compositions[i][0]).group(1):
+                    globals()['sites'].concentration = compositions[i][2]
 
-        all_rxns.append(globals()[f'rxn{len(all_rxns)}'])
-        
-        
+        all_rxns.append(globals()[f'rxn{len(all_rxns)}'])        
 
     return fpec.rxn_network.MetaSpecies._unique_species, all_rxns
