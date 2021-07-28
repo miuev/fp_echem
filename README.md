@@ -17,4 +17,3 @@ Two approaches are included.
 - change usage of `globals()` to `dicts` in `fpec.rxn_network`
 - change input file type to `.yaml` instead of `.txt`
 - allow for potential dependent rate constants (energies)
-- explicit accounting of site numbers (adsoprtion isotherms)

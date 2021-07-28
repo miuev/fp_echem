@@ -65,7 +65,7 @@ def surf_rxn(x, t):
             + kf_1*x[0]*x[3] - kr_1*x[2] - kf_2*x[2]*x[0] + kr_2*x[1]*x[3],
             - kf_1*x[0]*x[3] + kr_1*x[2] + kf_2*x[2]*x[0] - kr_2*x[1]*x[3]]
 
-t = np.linspace(0,5,int(5//0.01))
+t = np.linspace(0,60,int(1+60/0.01))
 
 def run(rxn = surf_rxn, initial_comps = surf_initial_comps, t = t):
     return odeint(rxn, initial_comps, t)
@@ -74,20 +74,14 @@ def test_network_solution():
     # reading in from .txt setup should yield same solution as hard code
     a, b = fpec.rxn_network.create_network(pathlib.Path(__file__).parent / 'reactions.txt')
     coupled_rxns = fpec.rxn_network.CoupledReactions(b)
-    cls_sol = coupled_rxns.solve(tmax = 5, dt = 0.01)
+    cls_sol = coupled_rxns.solve()
     dir_sol = run(rxn = rxn, initial_comps = initial_comps, t = t)
-    difference = cls_sol - dir_sol
-    total = difference.sum()
-    print(total)
-    assert np.isclose(total,0) == True
+    assert np.allclose(cls_sol,dir_sol) == True
 
 def test_surface_solution():
     # reading in from .txt setup should yield same solution as hard code
     a, b = fpec.rxn_network.create_network(pathlib.Path(__file__).parent / 'surface_rxn.txt')
     coupled_rxns = fpec.rxn_network.CoupledReactions(b)
-    cls_sol = coupled_rxns.solve(tmax = 5, dt = 0.01)
+    cls_sol = coupled_rxns.solve()
     dir_sol = run(rxn = surf_rxn, initial_comps = surf_initial_comps, t = t)
-    difference = cls_sol - dir_sol
-    total = difference.sum()
-    print(total)
-    assert np.isclose(total,0) == True
+    assert np.allclose(cls_sol,dir_sol) == True
