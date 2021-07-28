@@ -195,7 +195,15 @@ class CoupledReactions:
         plt.plot(self.t[:-1],-96485000*np.diff(self.solution[:,1])/self.dt)
         plt.xlabel('Time [s]')
         plt.ylabel('Current Density [mA/cm$^2$]')
-        plt.show() 
+        plt.show()
+    def plot_tafel(self):
+        if self.t is None:
+            warnings.warn('No action taken. You need to solve the reactions before plotting.')
+            return
+        plt.plot(self.solution[:-1,-2],np.log10(96485000*np.diff(self.solution[:,1])/self.dt))
+        plt.xlabel('Potential [V vs. SHE]')
+        plt.ylabel('log$_{10}$(Current Density) [log$_{10}$(mA/cm$^2$])')
+        plt.show()
 
 def create_network(path_to_setup):
     
