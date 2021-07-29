@@ -45,6 +45,8 @@ H+_o = 0.31 # Constant concentration of protons
 H_s_o = 0 # Initial concentration of adsorbed H
 H2_o = 0 # Initial concentration of H2
 sites_o = 5.5E-10 # Available surface sites in mol/cm^2
+```
+
 
 ### TO-DO
 - change input file type to `.yaml` instead of `.txt`
