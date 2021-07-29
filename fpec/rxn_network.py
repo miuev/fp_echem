@@ -1,16 +1,15 @@
 from dataclasses import dataclass
-from os import name
-from typing import List
+from os import initgroups
+from sys import setdlopenflags
+from typing import List, Dict
 import warnings
 import re
-from decimal import Decimal
 
 import fpec
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate.odepack import odeint
-from scipy.integrate import solve_ivp
 
 # Setting constants and useful properties
 
@@ -56,7 +55,7 @@ class Species(metaclass=MetaSpecies):
 class Reaction:
     def __init__(self, name: str, T: float, reactants: List[Species], products: List[Species],  
                  Af: float = 1E12, Ar: float = 1E12, energy: float = 0.0, barrier: float = 0.0,
-                 cc_coef: float = None, potential: Species = None, scan_rate: float = 0,
+                 cc_coef: float = None, potential: Species = None,
                  reactant_stoi: List[float] = None, product_stoi: List[float] = None) -> None:
         self.name = name
         
@@ -69,7 +68,6 @@ class Reaction:
         self.barrier = barrier
         self.cc_coef = cc_coef
         self.potential = potential
-        self.scan_rate = scan_rate
 
         self.T = T 
 
@@ -125,11 +123,9 @@ class Reaction:
             r.diff -= diff/s
         for p,s in zip(self.products,self.product_stoi):
             p.diff += diff/s
-        if self.potential != None:
-            self.potential.diff = -self.scan_rate
 
 class CoupledReactions:
-    def __init__(self, reactions: List[Reaction], tmax: float = 60, dt: float = 0.01) -> None:
+    def __init__(self, reactions: Dict[str, Reaction], tmax: float = 60, dt: float = 0.01) -> None:
         self.reactions = reactions
         self.tmax = tmax
         self.dt = dt
@@ -137,12 +133,12 @@ class CoupledReactions:
         # get all unique species from the reactions
         all_species = {}
         for rxn in self.reactions:
-            for r in rxn.reactants:
+            for r in self.reactions[rxn].reactants:
                 all_species[r.name] = r
-            for p in rxn.products:
+            for p in self.reactions[rxn].products:
                 all_species[p.name] = p
-            if rxn.potential != None:
-                all_species[rxn.potential.name] = rxn.potential
+            if self.reactions[rxn].potential != None:
+                all_species[self.reactions[rxn].potential.name] = self.reactions[rxn].potential
         self.all_species = [all_species[s] for s in sorted(all_species)]
         self._t = None
         self._solution = None
@@ -157,20 +153,27 @@ class CoupledReactions:
             s.concentration = comps[i]
         # compute difference for next step
         for rxn in self.reactions:
-            rxn.next_step(self.dt)
+            self.reactions[rxn].next_step(self.dt)
         diffs = []
         for s in self.all_species:
-            # if s.name == 'H+':
-            #     diffs.append(0)
-            # elif s.name != 'H+':
-            #     diffs.append(s.diff)
-            diffs.append(s.diff)
-            s.diff = 0
+            if s.name == 'H+':
+                diffs.append(0)
+            elif s.name != 'H+':
+                diffs.append(s.diff)
+            # diffs.append(s.diff)
+            if s.name != 'U':
+                s.diff = 0
         return diffs
     def solve(self):
         self._t = np.linspace(start = 0, stop = self.tmax, num = int(1+self.tmax/self.dt))
-        self.init_conc = [s.concentration for s in self.all_species]
-        self._solution = odeint(self._objective, self.init_conc, self._t)
+        self.init_conc = np.array([float(s.concentration) for s in self.all_species])
+        smallest = np.min(self.init_conc[[self.init_conc[k] != 0 for k in np.arange(len(self.init_conc))]])
+        oom = int(2.5*(1+np.ceil(abs(np.log10(smallest)))))
+        if oom >= 8:
+            atol = np.power(10.,-oom)
+        else:
+            atol = 1.49012E-8
+        self._solution = odeint(self._objective, self.init_conc, self._t, atol=atol)
         return self._solution
     def plot_results(self):
         if self.t is None:
@@ -206,13 +209,9 @@ class CoupledReactions:
         plt.show()
 
 def create_network(path_to_setup):
-    
-    U = None
-    scan_rate = None
 
-    startup = True
-
-    all_rxns = []
+    all_species = {}
+    all_rxns = {}
     compositions = []
 
     with open(path_to_setup) as network:
@@ -227,13 +226,11 @@ def create_network(path_to_setup):
                 if data[0] == 'T':
                     T = float(data[2])
                 if data[0] == 'U':
-                    globals()['U'] = Species(name='U')
-                    globals()['U'].concentration = float(data[2])
+                    all_species['U'] = Species(name='U')
+                    all_species['U'].concentration = float(data[2])
                 if data[0] == 'scan_rate':
-                    scan_rate = float(data[2])
+                    all_species['U'].diff = -float(data[2])
                 elif any(('[' or ']') in entry for entry in data):
-                    if startup == False:
-                        all_rxns.append(globals()[f'rxn{len(all_rxns)}'])
                         
                     reactants = []
                     reactant_stoi = []
@@ -253,53 +250,49 @@ def create_network(path_to_setup):
                             if '*' in species:
                                 species = re.sub('\*','_s',species)                           
                             if p == False:
-                                globals()[f'{species}'] = Species(species)
-                                reactants.append(globals()[f'{species}'])
+                                all_species[f'{species}'] = Species(species)
+                                reactants.append(all_species[f'{species}'])
                                 reactant_stoi.append(float(stoi))
                             elif p == True:
-                                globals()[f'{species}'] = Species(species)
-                                products.append(globals()[f'{species}'])
+                                all_species[f'{species}'] = Species(species)
+                                products.append(all_species[f'{species}'])
                                 product_stoi.append(float(stoi))
                         except AttributeError:
                             if entry == '->':
                                 p = True
                     
-                    startup = False
-                    if 'U' in globals():
-                        globals()[f'rxn{int(len(all_rxns))}'] = Reaction(name = f'rxn{len(all_rxns)}',
+                    if 'U' in all_species:
+                        all_rxns[f'rxn{int(len(all_rxns))}'] = Reaction(name = f'rxn{len(all_rxns)}',
                                                                          T = T, reactants = reactants,
                                                                          products = products,
-                                                                         potential = globals()['U'],
-                                                                         scan_rate = scan_rate,
+                                                                         potential = all_species['U'],
                                                                          reactant_stoi = reactant_stoi,
                                                                          product_stoi = product_stoi)
-                    elif 'U' not in globals():
-                        globals()[f'rxn{int(len(all_rxns))}'] = Reaction(name = f'rxn{len(all_rxns)}',
+                    elif 'U' not in all_species:
+                        all_rxns[f'rxn{int(len(all_rxns))}'] = Reaction(name = f'rxn{len(all_rxns)}',
                                                                          T = T, reactants = reactants,
                                                                          products = products,
-                                                                         scan_rate = scan_rate,
                                                                          reactant_stoi = reactant_stoi,
                                                                          product_stoi = product_stoi)
+
                 elif data[0] == 'Af':
-                    globals()[f'rxn{len(all_rxns)}'].Af = float(data[2])
+                    all_rxns[f'rxn{int(len(all_rxns)-1)}'].Af = float(data[2])
                 elif data[0] == 'Ar':
-                    globals()[f'rxn{len(all_rxns)}'].Ar = float(data[2])
+                    all_rxns[f'rxn{int(len(all_rxns)-1)}'].Ar = float(data[2])
                 elif data[0] == 'energy':
-                    globals()[f'rxn{len(all_rxns)}'].energy = float(data[2])
+                    all_rxns[f'rxn{int(len(all_rxns)-1)}'].energy = float(data[2])
                 elif data[0] == 'barrier':
-                    globals()[f'rxn{len(all_rxns)}'].barrier = float(data[2])
+                    all_rxns[f'rxn{int(len(all_rxns)-1)}'].barrier = float(data[2])
                 elif data[0] == 'cc_coef':
-                    globals()[f'rxn{len(all_rxns)}'].cc_coef = float(data[2])
+                    all_rxns[f'rxn{int(len(all_rxns)-1)}'].cc_coef = float(data[2])
                 elif '_o' in data[0]:
                     compositions.append(data)
             
         for species in fpec.rxn_network.MetaSpecies._unique_species:
             for i in np.arange(len(compositions)):
                 if species == re.search(r'^(.+?)\_o',compositions[i][0]).group(1):
-                    globals()[f'{species}'].concentration = compositions[i][2]
+                    all_species[f'{species}'].concentration = compositions[i][2]
                 elif 'sites' == re.search(r'^(.+?)\_o',compositions[i][0]).group(1):
-                    globals()['sites'].concentration = compositions[i][2]
+                    all_species['sites'].concentration = compositions[i][2]       
 
-        all_rxns.append(globals()[f'rxn{len(all_rxns)}'])        
-
-    return fpec.rxn_network.MetaSpecies._unique_species, all_rxns
+    return all_species, all_rxns

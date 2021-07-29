@@ -23,5 +23,4 @@ Underneath each new reaction, the attempt frequencies, charge transfer coefficie
 At the end of the file, initial stoichiometries can be given for each species by appending `_o` to the species name.
 
 ### TO-DO
-- change usage of `globals()` to `dicts` in `fpec.rxn_network`
 - change input file type to `.yaml` instead of `.txt`

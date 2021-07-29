@@ -68,7 +68,14 @@ def surf_rxn(x, t):
 t = np.linspace(0,60,int(1+60/0.01))
 
 def run(rxn = surf_rxn, initial_comps = surf_initial_comps, t = t):
-    return odeint(rxn, initial_comps, t)
+    initial_comps = np.array(initial_comps)
+    smallest = np.min(initial_comps[[initial_comps[k] != 0 for k in np.arange(len(initial_comps))]])
+    oom = 1+np.ceil(abs(np.log10(smallest)))
+    if oom >= 8:
+        atol = np.power(10.,-oom)
+    else:
+        atol = 1.49012E-8
+    return odeint(rxn, initial_comps, t, atol=atol)
 
 def test_network_solution():
     # reading in from .txt setup should yield same solution as hard code
