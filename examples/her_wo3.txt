@@ -6,7 +6,7 @@ scan_rate = 0.001
 Af = 7.734E11
 Ar = 1.293E11
 energy = -0.2
-cc_coef = 1
+c_coef = 0.5
 
 [H*] + [H+] + e- -> [H2] + [*]
 Af = 1.042E12

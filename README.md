@@ -21,6 +21,30 @@ Some important syntax notes are that reactants and products should always be enc
 Only electrons (written as `e-`) in electrochemical reactions should be left out of brackets.
 Underneath each new reaction, the attempt frequencies, charge transfer coefficients, and other reaction information can be listed.
 At the end of the file, initial stoichiometries can be given for each species by appending `_o` to the species name.
+Here is an example input file.
+
+```
+T = 298.15 # Temperature in K
+U = 0.0 # Starting potential in V
+scan_rate = 0.001 # Scan rate in V/s
+
+[H+] + e- + [*] -> [H*] # First reaction
+Af = 7.734E11 # Forward frequency factor in s-1
+Ar = 1.293E11 # Reverse frequency factor in s-1
+energy = -0.2 # Reaction energy in eV
+cc_coef = 0.5 # Unitless charge transfer coefficient
+
+[H*] + [H+] + e- -> [H2] + [*] # Another reaction
+Af = 1.042E12 
+Ar = 1.101E11
+energy = 0.38
+barrier = 0.44 # Activation barrier in eV
+cc_coef = 0.11
+
+H+_o = 0.31 # Constant concentration of protons
+H_s_o = 0 # Initial concentration of adsorbed H
+H2_o = 0 # Initial concentration of H2
+sites_o = 5.5E-10 # Available surface sites in mol/cm^2
 
 ### TO-DO
 - change input file type to `.yaml` instead of `.txt`
