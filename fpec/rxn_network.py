@@ -14,6 +14,7 @@ from scipy.integrate.odepack import odeint
 # Setting constants and useful properties
 
 k_b = 8.617333262145E-05 # Boltzmann constant in eV/K
+h = 4.135667696E-15 # Planck constant in eV*Hz-1
 
 class MetaSpecies(type):
     _unique_species = {}
@@ -53,8 +54,8 @@ class Species(metaclass=MetaSpecies):
         return self.concentration ** other
 
 class Reaction:
-    def __init__(self, name: str, T: float, reactants: List[Species], products: List[Species],  
-                 Af: float = 1E12, Ar: float = 1E12, energy: float = 0.0, barrier: float = 0.0,
+    def __init__(self, name: str, T: float, reactants: List[Species], products: List[Species],
+                 energy: float = 0.0, barrier: float = 0.0,
                  cc_coef: float = None, potential: Species = None,
                  reactant_stoi: List[float] = None, product_stoi: List[float] = None) -> None:
         self.name = name
@@ -62,8 +63,6 @@ class Reaction:
         self.reactants = reactants
         self.products = products
         
-        self.Af = Af
-        self.Ar = Ar
         self.energy = energy
         self.barrier = barrier
         self.cc_coef = cc_coef
@@ -109,11 +108,11 @@ class Reaction:
 
     @property
     def kf(self):
-        return self.Af*np.exp(-self.actf/(k_b*self.T))
+        return (k_b*self.T/h)*np.exp(-self.actf/(k_b*self.T))
     
     @property
     def kr(self):
-        return self.Ar*np.exp(-self.actr/(k_b*self.T))
+        return (k_b*self.T/h)*np.exp(-self.actr/(k_b*self.T))
     
     def next_step(self, timestep) -> None:
         forward = np.product(np.power(self.reactants, self.reactant_stoi)) * self.kf
@@ -275,10 +274,6 @@ def create_network(path_to_setup):
                                                                          reactant_stoi = reactant_stoi,
                                                                          product_stoi = product_stoi)
 
-                elif data[0] == 'Af':
-                    all_rxns[f'rxn{int(len(all_rxns)-1)}'].Af = float(data[2])
-                elif data[0] == 'Ar':
-                    all_rxns[f'rxn{int(len(all_rxns)-1)}'].Ar = float(data[2])
                 elif data[0] == 'energy':
                     all_rxns[f'rxn{int(len(all_rxns)-1)}'].energy = float(data[2])
                 elif data[0] == 'barrier':
@@ -296,3 +291,9 @@ def create_network(path_to_setup):
                     all_species['sites'].concentration = compositions[i][2]       
 
     return all_species, all_rxns
+
+def to_current(solution,time):
+    current = -2*96485000*np.diff(solution[:,1])/(time[1]-time[0])
+    tafel = np.log10(2*96485000*np.diff(solution[:,1])/(time[1]-time[0]))
+    return current, tafel
+        

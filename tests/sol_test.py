@@ -12,29 +12,27 @@ from scipy.integrate.odepack import odeint
 # [C] + [A] -> [D]
 
 k_b = 8.617333262145E-05 # Boltzmann constant in eV/K
+h = 4.135667696E-15
 T = 298.15
+A = k_b*T/h
 
-Af_1 = 1E12
-Ar_1 = 1E11
 energy_1 = -0.2
 barrier_1 = 0.5
 
 actf_1 = np.max([energy_1,barrier_1])
 actr_1 = barrier_1 - energy_1
 
-kf_1 = Af_1*np.exp(-actf_1/(k_b*T))
-kr_1 = Ar_1*np.exp(-actr_1/(k_b*T))
+kf_1 = A*np.exp(-actf_1/(k_b*T))
+kr_1 = A*np.exp(-actr_1/(k_b*T))
 
-Af_2 = 1E12
-Ar_2 = 1E11
 energy_2 = 0.1
 barrier_2 = 0.6
 
 actf_2 = np.max([energy_2,barrier_2])
 actr_2 = barrier_2 - energy_2
 
-kf_2 = Af_2*np.exp(-actf_2/(k_b*T))
-kr_2 = Ar_2*np.exp(-actr_2/(k_b*T))
+kf_2 = A*np.exp(-actf_2/(k_b*T))
+kr_2 = A*np.exp(-actr_2/(k_b*T))
 
 A_o = 1 
 B_o = 2
