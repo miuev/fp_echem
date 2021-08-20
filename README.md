@@ -29,17 +29,16 @@ U = 0.0 # Starting potential in V
 scan_rate = 0.001 # Scan rate in V/s
 
 [H+] + e- + [*] -> [H*] # First reaction
-Af = 7.734E11 # Forward frequency factor in s-1
-Ar = 1.293E11 # Reverse frequency factor in s-1
 energy = -0.2 # Reaction energy in eV
-cc_coef = 0.5 # Unitless charge transfer coefficient
+barrier = 0.2
+dedu = 0.5 # Unitless charge transfer coefficient for rxn energy
+dbdu = 0.5 # Unitless charge transfer coefficient for barrier
 
 [H*] + [H+] + e- -> [H2] + [*] # Another reaction
-Af = 1.042E12 
-Ar = 1.101E11
 energy = 0.38
 barrier = 0.44 # Activation barrier in eV
-cc_coef = 0.11
+dedu = 0.5 
+dbdu = 0.11
 
 H+_o = 0.31 # Constant concentration of protons
 H_s_o = 0 # Initial concentration of adsorbed H
