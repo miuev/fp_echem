@@ -49,4 +49,6 @@ sites_o = 5.5E-10 # Available surface sites in mol/cm^2
 
 
 ### TO-DO
+- collision theory for adsorption
+- multiple site types
 - change input file type to `.yaml` instead of `.txt`
