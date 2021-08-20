@@ -1,14 +1,10 @@
 T = 298.15
 
 2[A] + [B] -> 2[C]
-Af = 1E12
-Ar = 1E11
 energy = -0.2
 barrier = 0.5
 
 [C] + [A] -> [D]
-Af = 1E12
-Ar = 1E11
 energy = 0.1
 barrier = 0.6
 

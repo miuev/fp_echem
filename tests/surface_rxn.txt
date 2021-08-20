@@ -1,14 +1,10 @@
 T = 298.15
 
 [A] + [*] -> [A*]
-Af = 1E12
-Ar = 1E11
 energy = -0.2
 barrier = 0.5
 
 [A*] + [A] -> [A2] + [*]
-Af = 1E12
-Ar = 1E11
 energy = 0.1
 barrier = 0.6
 

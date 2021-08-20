@@ -1,14 +1,18 @@
 T = 298.15
-U = 0.4
+U = 0.1
 scan_rate = 0.001
 
 [H+] + e- + [*] -> [H*]
-energy = 0.21
-cc_coef = 0.5
+energy = 0.211
+barrier = 0.222
+dedu = 0.22
+dbdu = 0.5
 
-[H*] + [H+] + e- -> [H2] + [*]
-energy = 0.28
-cc_coef = 0.5
+2[H*] -> [H2] + 2[*]
+energy = -0.861
+barrier = 0.641
+dedu = 0.12
+dbdu = -0.018
 
 H+_o = 0.31
 H_s_o = 0

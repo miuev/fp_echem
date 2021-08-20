@@ -56,7 +56,7 @@ A_s_o = 0
 A2_o = 0
 s_o = 0.001
 
-surf_initial_comps = [A_o,A2_o,A_s_o,s_o]
+surf_initial_comps = [A_o,A2_o,A_s_o,s_o/s_o]
 def surf_rxn(x, t):
     return [- kf_1*x[0]*x[3] + kr_1*x[2] - kf_2*x[2]*x[0] + kr_2*x[1]*x[3],
             + kf_2*x[2]*x[0] - kr_2*x[1]*x[3],
