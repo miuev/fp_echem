@@ -52,3 +52,4 @@ sites_o = 5.5E-10 # Available surface sites in mol/cm^2
 - multiple site types
 - change input file type to `.yaml` instead of `.txt`
 - idx change to species name
+- tof calculation in solve()
