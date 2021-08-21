@@ -28,6 +28,8 @@ class MetaSpecies(type):
             cls._unique_species[name] = super(MetaSpecies, cls).__call__(*args, **kwargs)
         # return species <name>
         return cls._unique_species[name]
+    def reset(cls):
+        MetaSpecies._unique_species = {}
 
 @dataclass
 class Species(metaclass=MetaSpecies):
@@ -258,6 +260,8 @@ class CoupledReactions:
 
 def create_network(path_to_setup):
 
+    Species.reset()
+
     T = 298.15
     V = 1
     flow_rate = 1
@@ -353,7 +357,7 @@ def create_network(path_to_setup):
                 elif '_o' in data[0]:
                     compositions.append(data)
             
-        for species in fpec.rxn_network.MetaSpecies._unique_species:
+        for species in all_species:
             for i in np.arange(len(compositions)):
                 if species == re.search(r'^(.+?)\_o',compositions[i][0]).group(1):
                     if reactor == 'batch':
