@@ -8,11 +8,6 @@ def equilibrium(a_h,dG,T):
 
 def dcov_du_setup(a_h,km,stoichs,red = True):
        
-    if red == True:
-        v = -v
-    elif red == False:
-        v = v
-    
     def dcov_du(cov,t):
         
         result = []
