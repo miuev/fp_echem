@@ -15,8 +15,6 @@ from scipy.integrate.odepack import odeint
 
 k_b = 8.617333262145E-05 # Boltzmann constant in eV/K
 h = 4.135667696E-15 # Planck constant in eV*Hz-1
-R = 8.31446261815324 # Gas constant in m^3 Pa K-1 mol-1
-Na = 6.02214E23 # Avogadro's number in # mol-1
 
 class MetaSpecies(type):
     _unique_species = {}
@@ -105,8 +103,6 @@ class Reaction:
             reverse_activation = np.max([-self.energy, self.barrier - self.energy],axis=0)
         if reverse_activation <= 0:
             act_rev = 0
-        # elif 'H2' in self.reactants or self.products:
-        #     act_rev = 0
         else:
             act_rev = reverse_activation
         return act_rev
@@ -156,6 +152,9 @@ class CoupledReactions:
     @property
     def solution(self):
         return self._solution
+    @property
+    def tof(self):
+        return self._tof
     def _objective(self, comps, _):
         for i, s in enumerate(self.all_species):
             s.concentration = comps[i]
@@ -181,7 +180,7 @@ class CoupledReactions:
         else:
             atol = 1.49012E-20
         self._solution = odeint(self._objective, self.init_conc, self._t, atol=atol)
-        return self._solution
+        self._tof = np.diff(self.solution,axis=0)/self.dt
     def plot_results(self):
         if self.t is None:
             warnings.warn('No action taken. You need to solve the reactions before plotting.')
@@ -202,25 +201,30 @@ class CoupledReactions:
         if self.t is None:
             warnings.warn('No action taken. You need to solve the reactions before plotting.')
             return
+        loc = np.argwhere(np.array([s.name for s in self.all_species]) == idx)[0][0]
         if self.reac_info['reactor'] == 'batch':
             if per_site == True:
-                plt.semilogy(self.t[:-1],np.diff(self.solution[:,idx])/self.dt)
+                plt.semilogy(self.t[:-1],self.tof[:,loc])
                 plt.ylabel('TOF [site$^{-1}$$\cdot$$s^{-1}$]')
             else:
-                plt.semilogy(self.t[:-1],self.reac_info['site_density']*np.diff(self.solution[:,idx])/self.dt)
+                plt.semilogy(self.t[:-1],self.reac_info['site_density']*self.tof[:,loc])
                 plt.ylabel('TOF [$s^{-1}$]')
             plt.xlabel('Time [s]')
         elif self.reac_info['reactor'] == 'flow':
             if per_site == True:
-                plt.plot(self.reac_info['flow_rate']*self.t[:-1],np.diff(self.solution[:,idx])/self.dt)
+                plt.plot(self.reac_info['flow_rate']*self.t[:-1],self.tof[:,loc])
                 plt.ylabel('TOF [site$^{-1}$$\cdot$$s^{-1}$]')
             else:
                 factor = self.reac_info['flow_rate']*self.reac_info['V']*self.reac_info['alpha']*self.reac_info['site_density']/float(len(self._t))
-                plt.semilogy(self.reac_info['flow_rate']*self.t[:-1],factor*np.diff(self.solution[:,idx])/self.dt)
+                plt.semilogy(self.reac_info['flow_rate']*self.t[:-1],factor*self.tof[:,loc])
                 plt.ylabel('TOF [$s^{-1}$]')
             plt.xlabel('Reactor Volume [L]')
-        plt.show() 
+        plt.show()
+    def initial_rate(self, idx):
+        loc = np.argwhere(np.array([s.name for s in self.all_species]) == idx)[0][0]
+        print( self.tof[0,loc])
     def plot_cv(self):
+        warnings.warn('This function is not complete and will return incorrect results.')
         if self.t is None:
             warnings.warn('No action taken. You need to solve the reactions before plotting.')
             return
@@ -228,35 +232,20 @@ class CoupledReactions:
         plt.xlabel('Potential [V vs. SHE]')
         plt.ylabel('Current Density [mA/cm$^2$]')
         plt.show() 
-    def plot_ca(self):
+    def plot_tafel(self, idx, current=False):
         if self.t is None:
             warnings.warn('No action taken. You need to solve the reactions before plotting.')
             return
-        plt.plot(self.t[:-1],-96485000*np.diff(self.solution[:,1])/self.dt)
-        plt.xlabel('Time [s]')
-        plt.ylabel('Current Density [mA/cm$^2$]')
-        plt.show()
-    def plot_tafel(self):
-        if self.t is None:
-            warnings.warn('No action taken. You need to solve the reactions before plotting.')
-            return
-        plt.plot(self.solution[:-1,-2],np.log10((96485000)*np.diff(self.solution[:,1])/self.dt))
+        loc = np.argwhere(np.array([s.name for s in self.all_species]) == idx)[0][0]
+        u_loc = np.argwhere(np.array([s.name for s in self.all_species]) == 'U')[0][0]
+        if current == True:
+            plt.plot(self.solution[:-1,u_loc],np.log10(96485000*self.tof[:,loc]))
+            plt.ylabel('log$_{10}$(Current Density) [log$_{10}$(mA)]')
+        elif current == False:
+            plt.plot(self.solution[:-1,u_loc],np.log10(self.tof[:,loc]))
+            plt.ylabel('log$_{10}$(TOF) [log$_{10}(s^{-1})$]')
         plt.xlabel('Potential [V vs. SHE]')
-        plt.ylabel('log$_{10}$(Current Density) [log$_{10}$(mA)]')
         plt.show()
-    def to_tof(self, idx, per_site = True):
-        if self.reac_info['reactor'] == 'batch':
-            if per_site == True:
-                tof = np.diff(self.solution[:,idx])/self.dt
-            else:
-                tof = self.reac_info['site_density']*np.diff(self.solution[:,idx])/self.dt
-        elif self.reac_info['reactor'] == 'flow':
-            if per_site == True:
-                tof = np.diff(self.solution[:,idx])/self.dt
-            else:
-                factor = self.reac_info['flow_rate']*self.reac_info['V']*self.reac_info['alpha']*self.reac_info['site_density']/float(len(self._t))
-                tof = factor*np.diff(self.solution[:,idx])/self.dt
-        return tof
 
 def create_network(path_to_setup):
 
@@ -378,4 +367,3 @@ def to_current(solution,time,area_factor = 1):
     current = -area_factor*2*96485000*np.diff(solution[:,1])/(time[1]-time[0])
     tafel = np.log10(area_factor*96485000*np.diff(solution[:,1])/(time[1]-time[0]))
     return current, tafel
-
