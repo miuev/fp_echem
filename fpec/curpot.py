@@ -6,35 +6,29 @@ def equilibrium(a_h,dG,T):
     theta = (a_h*K)/(a_h*K+1)
     return theta
 
-def dcov_du_setup(a_h,km,stoichs,red = True):
-       
-    def dcov_du(cov,t):
-        
+def dcov_du_setup(a_h,km,stoichs):
+    def dcov_du(cov,U):
+
         result = []
-                         
+
         for i in np.arange(int(stoichs.shape[-1])):
-            mass_trans = km*(stoichs[0,i]*equilibrium(a_h,cov[0]-stoichs[1,i],298.15)-cov[i+1])
+            mass_trans = km*(stoichs[0,i]*equilibrium(a_h,U-stoichs[1,i],298.15)-cov[i])
             result.append(mass_trans)
 
         result = np.array(result)
-        
+
         return result
-    
+
     return dcov_du
 
+def intercalation(U,v,comp_i,km,a_h,stoichs,area_ratio):
 
-def intercalation(U,comp_i,km,a_h,stoichs,area_ratio):
-    
-    neg_0 = comp_i
-    neg_t = U
-    
-    dcov_du_neg = dcov_du_setup(a_h,km,stoichs,red = True)
-    neg_cov = odeint(dcov_du_neg, neg_0, neg_t)
-    neg_dU = abs(neg_cov[1,0]-neg_cov[0,0])
-    
-    neg_int = -(96485000)*area_ratio*np.diff(neg_cov[:,1:].sum(axis=1))/neg_dU
-    
-    return neg_int
+    t = U/v
+
+    dcov_du_neg = dcov_du_setup(a_h,km,stoichs)
+    neg_cov = odeint(dcov_du_neg, comp_i, t)
+        
+    return neg_cov
 
 # saving for bi-directional intercalation sweeps
 # def intercalation(U_o,U_s,U_f,v,res,comp_i,km,a_h,stoichs,area_ratio):
