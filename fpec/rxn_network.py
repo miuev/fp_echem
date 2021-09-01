@@ -5,8 +5,6 @@ from typing import List, Dict
 import warnings
 import re
 
-import fpec
-
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate.odepack import odeint
@@ -174,7 +172,7 @@ class CoupledReactions:
         self._t = np.linspace(start = 0, stop = self.tmax, num = int(1+self.tmax/self.dt))
         self.init_conc = np.array([float(s.concentration) for s in self.all_species])
         smallest = np.min(self.init_conc[[self.init_conc[k] != 0 for k in np.arange(len(self.init_conc))]])
-        oom = int(6*(1+np.ceil(abs(np.log10(smallest)))))
+        oom = int(2*(1+np.ceil(abs(np.log10(smallest)))))
         if oom >= 12:
             atol = np.power(10.,-oom)
         else:
@@ -246,6 +244,24 @@ class CoupledReactions:
             plt.ylabel('log$_{10}$(TOF) [log$_{10}(s^{-1})$]')
         plt.xlabel('Potential [V vs. SHE]')
         plt.show()
+    def tafel(self, idx):
+        if self.t is None:
+            warnings.warn('No action taken. You need to solve the reactions before plotting.')
+            return
+        loc = np.argwhere(np.array([s.name for s in self.all_species]) == idx)[0][0]
+        return np.log10(self.reac_info['site_density']*96485000*self.tof[:,loc])
+    def current(self, idx):
+        if self.t is None:
+            warnings.warn('No action taken. You need to solve the reactions before plotting.')
+            return
+        loc = np.argwhere(np.array([s.name for s in self.all_species]) == idx)[0][0]
+        return self.reac_info['site_density']*96485000*self.tof[:,loc]
+    def potential(self):
+        if self.t is None:
+            warnings.warn('No action taken. You need to solve the reactions before plotting.')
+            return
+        u_loc = np.argwhere(np.array([s.name for s in self.all_species]) == 'U')[0][0]
+        return self.solution[:,u_loc]
 
 def create_network(path_to_setup):
 
@@ -362,8 +378,3 @@ def create_network(path_to_setup):
                         all_species['sites'].concentration = float(compositions[i][2])/site_density
                     
     return all_species, {'reactions':all_rxns,'reactor':reactor,'V':V,'flow_rate':flow_rate,'alpha':alpha,'site_density':site_density}
-
-def to_current(solution,time,area_factor = 1):
-    current = -area_factor*2*96485000*np.diff(solution[:,1])/(time[1]-time[0])
-    tafel = np.log10(area_factor*96485000*np.diff(solution[:,1])/(time[1]-time[0]))
-    return current, tafel
