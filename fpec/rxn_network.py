@@ -1,6 +1,4 @@
 from dataclasses import dataclass
-from os import initgroups
-from sys import setdlopenflags
 from typing import List, Dict
 import warnings
 import re
@@ -8,6 +6,7 @@ import re
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate.odepack import odeint
+from scipy.integrate import solve_ivp
 
 # Setting constants and useful properties
 
@@ -154,6 +153,7 @@ class CoupledReactions:
     def tof(self):
         return self._tof
     def _objective(self, comps, _):
+    # def _objective(self, _, comps):
         for i, s in enumerate(self.all_species):
             s.concentration = comps[i]
         # compute difference for next step
@@ -178,6 +178,9 @@ class CoupledReactions:
         else:
             atol = 1.49012E-20
         self._solution = odeint(self._objective, self.init_conc, self._t, atol=atol)
+        # solution = solve_ivp(fun = self._objective, t_span = (0,self.tmax), y0 = self.init_conc,
+        #                      method = 'BDF', dense_output = True, atol = atol)
+        # self._solution = solution.sol(self.t).T
         self._tof = np.diff(self.solution,axis=0)/self.dt
     def plot_results(self):
         if self.t is None:
