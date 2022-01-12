@@ -33,3 +33,6 @@ __pycache__/
 
 # temp files
 *.swp
+
+# notebook
+.ipynb_checkpoints
