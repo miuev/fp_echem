@@ -6,10 +6,11 @@ import re
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate.odepack import odeint
+
+# alternative ODE solver with more methods
 from scipy.integrate import solve_ivp
 
 # Setting constants and useful properties
-
 k_b = 8.617333262145E-05 # Boltzmann constant in eV/K
 h = 4.135667696E-15 # Planck constant in eV*Hz-1
 
@@ -143,17 +144,20 @@ class CoupledReactions:
         self.all_species = [all_species[s] for s in sorted(all_species)]
         self._t = None
         self._solution = None
+    
     @property
     def t(self):
         return self._t
+    
     @property
     def solution(self):
         return self._solution
+    
     @property
     def tof(self):
         return self._tof
+    
     def _objective(self, comps, _):
-    # def _objective(self, _, comps):
         for i, s in enumerate(self.all_species):
             s.concentration = comps[i]
         # compute difference for next step
@@ -168,21 +172,39 @@ class CoupledReactions:
             if s.name != 'U':
                 s.diff = 0
         return diffs
+    
     def solve(self):
+        """
+        main mkm solver block
+        """
+
         self._t = np.linspace(start = 0, stop = self.tmax, num = int(1+self.tmax/self.dt))
         self.init_conc = np.array([float(s.concentration) for s in self.all_species])
+        
+        # auto-ranging tolerance for numerical stability
         smallest = np.min(self.init_conc[[self.init_conc[k] != 0 for k in np.arange(len(self.init_conc))]])
         oom = int(2*(1+np.ceil(abs(np.log10(smallest)))))
         if oom >= 12:
             atol = np.power(10.,-oom)
         else:
             atol = 1.49012E-20
+        
+        # integrating mass balances
         self._solution = odeint(self._objective, self.init_conc, self._t, atol=atol)
+        
+        ################ uncomment these lines and comment line above to switch to solve_ivp solver
         # solution = solve_ivp(fun = self._objective, t_span = (0,self.tmax), y0 = self.init_conc,
         #                      method = 'BDF', dense_output = True, atol = atol)
         # self._solution = solution.sol(self.t).T
+        ################
+
         self._tof = np.diff(self.solution,axis=0)/self.dt
+    
     def plot_results(self):
+        """
+        quick plotting function for diagnostics
+        """
+
         if self.t is None:
             warnings.warn('No action taken. You need to solve the reactions before plotting.')
             return
@@ -198,7 +220,14 @@ class CoupledReactions:
             plt.ylabel(r'Partial Pressure [$\frac{P_i}{P_o}$] or Coverage')
         plt.legend()
         plt.show()
+
     def plot_tof(self, idx, per_site = True):
+        """
+        quick plotting function for diagnostics
+        
+        idx: string naming species to plot, must match an input file name exactly
+        per_site: boolean, defines units of TOF as per site per sec (True) or per sec (False)  
+        """
         if self.t is None:
             warnings.warn('No action taken. You need to solve the reactions before plotting.')
             return
@@ -221,45 +250,50 @@ class CoupledReactions:
                 plt.ylabel('TOF [$s^{-1}$]')
             plt.xlabel('Reactor Volume [L]')
         plt.show()
+    
     def initial_rate(self, idx):
+        """
+        quick plotting function for diagnostics
+        
+        idx: string naming species for which to return initial rate, must match an input file name exactly
+        """
         loc = np.argwhere(np.array([s.name for s in self.all_species]) == idx)[0][0]
         print( self.tof[0,loc])
-    def plot_cv(self):
-        warnings.warn('This function is not complete and will return incorrect results.')
-        if self.t is None:
-            warnings.warn('No action taken. You need to solve the reactions before plotting.')
-            return
-        plt.plot(self.solution[:-1,-2],-96485000*np.diff(self.solution[:,1])/self.dt)
-        plt.xlabel('Potential [V vs. SHE]')
-        plt.ylabel('Current Density [mA/cm$^2$]')
-        plt.show() 
-    def plot_tafel(self, idx, current=False):
-        if self.t is None:
-            warnings.warn('No action taken. You need to solve the reactions before plotting.')
-            return
-        loc = np.argwhere(np.array([s.name for s in self.all_species]) == idx)[0][0]
-        u_loc = np.argwhere(np.array([s.name for s in self.all_species]) == 'U')[0][0]
-        if current == True:
-            plt.plot(self.solution[:-1,u_loc],np.log10(96485000*self.tof[:,loc]))
-            plt.ylabel('log$_{10}$(Current Density) [log$_{10}$(mA)]')
-        elif current == False:
-            plt.plot(self.solution[:-1,u_loc],np.log10(self.tof[:,loc]))
-            plt.ylabel('log$_{10}$(TOF) [log$_{10}(s^{-1})$]')
-        plt.xlabel('Potential [V vs. SHE]')
-        plt.show()
-    def tafel(self, idx):
+    
+    def current(self, idx, n=1, A_norm=1):
+        """
+        helper function to compute current data
+        
+        idx: string naming species for which to compute transformation, must match an input file name exactly
+        n: number of electrons involved in the reaction, corresponding to full reaction
+        A_norm: scale factor to convert data from per ideal surface area to electrode area, if left at default value
+                returns data in current per surface area of ideal unit cell facet
+        """
         if self.t is None:
             warnings.warn('No action taken. You need to solve the reactions before plotting.')
             return
         loc = np.argwhere(np.array([s.name for s in self.all_species]) == idx)[0][0]
-        return np.log10(self.reac_info['site_density']*96485000*self.tof[:,loc])
-    def current(self, idx):
+        return n*A_norm*self.reac_info['site_density']*96485000*self.tof[:,loc]
+    
+    def tafel(self, idx, n=1, A_norm=1):
+        """
+        helper function to compute Tafel space data, i.e. log10(current)
+        
+        idx: string naming species for which to compute transformation, must match an input file name exactly
+        n: number of electrons involved in the reaction, corresponding to full reaction
+        A_norm: scale factor to convert data from per ideal surface area to electrode area, if left at default value
+                returns data in logarithmic current per surface area of ideal unit cell facet
+        """
         if self.t is None:
             warnings.warn('No action taken. You need to solve the reactions before plotting.')
             return
         loc = np.argwhere(np.array([s.name for s in self.all_species]) == idx)[0][0]
-        return self.reac_info['site_density']*96485000*self.tof[:,loc]
+        return np.log10(n*A_norm*self.reac_info['site_density']*96485000*self.tof[:,loc])
+    
     def potential(self):
+        """
+        extract potential trace from output data        
+        """
         if self.t is None:
             warnings.warn('No action taken. You need to solve the reactions before plotting.')
             return

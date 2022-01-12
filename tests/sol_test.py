@@ -79,7 +79,8 @@ def test_network_solution():
     # reading in from .txt setup should yield same solution as hard code
     a, b = fpec.rxn_network.create_network(pathlib.Path(__file__).parent / 'reactions.txt')
     coupled_rxns = fpec.rxn_network.CoupledReactions(b)
-    cls_sol = coupled_rxns.solve()
+    coupled_rxns.solve()
+    cls_sol = coupled_rxns.solution
     dir_sol = run(rxn = rxn, initial_comps = initial_comps, t = t)
     assert np.allclose(cls_sol,dir_sol) == True
 
@@ -87,6 +88,7 @@ def test_surface_solution():
     # reading in from .txt setup should yield same solution as hard code
     a, b = fpec.rxn_network.create_network(pathlib.Path(__file__).parent / 'surface_rxn.txt')
     coupled_rxns = fpec.rxn_network.CoupledReactions(b)
-    cls_sol = coupled_rxns.solve()
+    coupled_rxns.solve()
+    cls_sol = coupled_rxns.solution
     dir_sol = run(rxn = surf_rxn, initial_comps = surf_initial_comps, t = t)
     assert np.allclose(cls_sol,dir_sol) == True

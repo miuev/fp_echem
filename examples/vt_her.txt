@@ -1,0 +1,31 @@
+# Example input file for electrochemical Volmer-Tafel HER
+
+# Temperature [K]
+T = 298.15
+
+# Initial potential [V, reference depends on energy inputs]
+U = 0.4
+
+# Scan rate [V/s]
+scan_rate = 0.001
+
+# Volmer adsorption
+[H+] + e- + [*] -> [H*]
+energy = 0.211
+barrier = 0.222
+dedu = 0.22
+dbdu = 0.5
+
+# Tafel coupling
+2[H*] -> [H2] + 2[*]
+energy = -0.861
+barrier = 0.641
+dedu = 0.12
+dbdu = -0.018
+
+# Initial concentrations [dimensionless]
+# sites_o [mol/cm3]
+H+_o = 0.31
+H_s_o = 0
+H2_o = 0
+sites_o = 2.1E-9
