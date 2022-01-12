@@ -6,15 +6,15 @@ T = 298.15
 # Reaction 1
 2[A] + [B] -> 2[C]
 energy = -0.2
-barrier = 0.5
+barrier = 0.7
 
 # Reaction 2
 [C] + [A] -> [D]
-energy = 0.1
-barrier = 0.6
+energy = -0.1
+barrier = 0.4
 
 # Initial concentrations [dimensionless]
-A_o = 1
-B_o = 2
+A_o = 0.5
+B_o = 0.5
 C_o = 0
 D_o = 0

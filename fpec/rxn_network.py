@@ -123,7 +123,7 @@ class Reaction:
             p.diff += diff/s
 
 class CoupledReactions:
-    def __init__(self, reac_info: Dict[str, Reaction],tmax: float = 60, dt: float = 0.01) -> None:
+    def __init__(self, reac_info: Dict[str, Reaction], tmax: float = 60, dt: float = 0.01) -> None:
         self.reac_info = reac_info
         if self.reac_info['reactor'] == 'batch':
             self.tmax = tmax

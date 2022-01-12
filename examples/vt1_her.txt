@@ -11,21 +11,21 @@ scan_rate = 0.001
 
 # Volmer adsorption
 [H+] + e- + [*] -> [H*]
-energy = 0.211
-barrier = 0.222
-dedu = 0.22
+energy = 0.2
+barrier = 0.25
+dedu = 0.2
 dbdu = 0.5
 
 # Tafel coupling
 2[H*] -> [H2] + 2[*]
-energy = -0.861
-barrier = 0.641
-dedu = 0.12
-dbdu = -0.018
+energy = -0.8
+barrier = 0.6
+dedu = 0.0
+dbdu = 0.0
 
 # Initial concentrations [dimensionless]
 # sites_o [mol/cm3]
-H+_o = 0.31
+H+_o = 0.3
 H_s_o = 0
 H2_o = 0
-sites_o = 2.1E-9
+sites_o = 2E-9
