@@ -8,7 +8,7 @@ Either empirical or first-principles charge transfer coefficients can be used, d
 ## Usage
 
 The energies associated with each elementary step of a full reaction pathway are required for calculating currents and should also be assigned in the `.txt` reaction scheme file.
-Examples are included in `fp_echem/examples`.
+Examples are included [here](examples/usage_examples.ipynb), in `fp_echem/examples/usage_examples.ipynb`.
 Some important syntax notes are that reactants and products should always be enclosed in `[]`.
 Only electrons (written as `e-`) in electrochemical reactions should be left out of brackets.
 Underneath each new reaction, the energies, charge transfer coefficients, and other reaction information can be listed.
