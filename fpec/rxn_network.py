@@ -123,7 +123,7 @@ class Reaction:
             p.diff += diff/s
 
 class CoupledReactions:
-    def __init__(self, reac_info: Dict[str, Reaction], tmax: float = 60, dt: float = 0.01) -> None:
+    def __init__(self, reac_info: Dict[str, Reaction], fixed: list[str] = [''], tmax: float = 60, dt: float = 0.01) -> None:
         self.reac_info = reac_info
         if self.reac_info['reactor'] == 'batch':
             self.tmax = tmax
@@ -144,6 +144,7 @@ class CoupledReactions:
         self.all_species = [all_species[s] for s in sorted(all_species)]
         self._t = None
         self._solution = None
+        self.fixed = fixed
     
     @property
     def t(self):
@@ -167,7 +168,9 @@ class CoupledReactions:
         for s in self.all_species:
             if s.name == 'H+':
                 diffs.append(0)
-            elif s.name != 'H+':
+            elif s.name in self.fixed:
+                diffs.append(0)
+            elif ((s.name != 'H+') or (s.name not in self.fixed)):
                 diffs.append(s.diff)
             if s.name != 'U':
                 s.diff = 0
