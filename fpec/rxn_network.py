@@ -173,7 +173,7 @@ class CoupledReactions:
                 s.diff = 0
         return diffs
     
-    def solve(self):
+    def solve(self, tolerance='Auto'):
         """
         main mkm solver block
         """
@@ -181,14 +181,17 @@ class CoupledReactions:
         self._t = np.linspace(start = 0, stop = self.tmax, num = int(1+self.tmax/self.dt))
         self.init_conc = np.array([float(s.concentration) for s in self.all_species])
         
-        # auto-ranging tolerance for numerical stability
-        smallest = np.min(self.init_conc[[self.init_conc[k] != 0 for k in np.arange(len(self.init_conc))]])
-        oom = int(2*(1+np.ceil(abs(np.log10(smallest)))))
-        if oom >= 12:
-            atol = np.power(10.,-oom)
+        if tolerance == 'Auto':
+            # auto-ranging tolerance for numerical stability
+            smallest = np.min(self.init_conc[[self.init_conc[k] != 0 for k in np.arange(len(self.init_conc))]])
+            oom = int(2*(1+np.ceil(abs(np.log10(smallest)))))
+            if oom >= 12:
+                atol = np.power(10.,-oom)
+            else:
+                atol = 1.49012E-20
         else:
-            atol = 1.49012E-20
-        
+            atol = tolerance
+
         # integrating mass balances
         self._solution = odeint(self._objective, self.init_conc, self._t, atol=atol)
         
