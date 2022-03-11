@@ -118,9 +118,9 @@ class Reaction:
         reverse = np.product(np.power(self.products, self.product_stoi)) * self.kr
         diff = forward - reverse
         for r,s in zip(self.reactants,self.reactant_stoi):
-            r.diff -= diff/s
+            r.diff -= diff*s
         for p,s in zip(self.products,self.product_stoi):
-            p.diff += diff/s
+            p.diff += diff*s
 
 class CoupledReactions:
     def __init__(self, reac_info: Dict[str, Reaction], fixed: list[str] = [''], tmax: float = 60, dt: float = 0.01) -> None:

@@ -42,9 +42,9 @@ D_o = 0
 initial_comps = [A_o,B_o,C_o,D_o]
 
 def rxn(x, t):
-    return [- 0.5*kf_1*(x[0]**2)*x[1] + 0.5*kr_1*x[2]**2 - kf_2*x[2]*x[0] + kr_2*x[3],
+    return [- 2*kf_1*(x[0]**2)*x[1] + 2*kr_1*x[2]**2 - kf_2*x[2]*x[0] + kr_2*x[3],
             - kf_1*(x[0]**2)*x[1] + kr_1*x[2]**2,
-            + 0.5*kf_1*(x[0]**2)*x[1] - 0.5*kr_1*x[2]**2 - kf_2*x[2]*x[0] + kr_2*x[3],
+            + 2*kf_1*(x[0]**2)*x[1] - 2*kr_1*x[2]**2 - kf_2*x[2]*x[0] + kr_2*x[3],
             + kf_2*x[2]*x[0] - kr_2*x[3]]
 
 # direct solution for the following heterogeneous reaction scheme
