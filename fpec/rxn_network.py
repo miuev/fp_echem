@@ -3,6 +3,8 @@ from typing import List, Dict
 import warnings
 import re
 
+from fpec.tools import zpets
+
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate.odepack import odeint
@@ -56,19 +58,36 @@ class Species(metaclass=MetaSpecies):
 class Reaction:
     def __init__(self, name: str, T: float, reactants: List[Species], products: List[Species],
                  energy: float = 0.0, barrier: float = 0.0,
+                 vib_i: List[float] = None, vib_t: List[float] = None, vib_f: List[float] = None,
                  dedu: float = 0.0, dbdu: float = 0.0, potential: Species = None,
                  reactant_stoi: List[float] = None, product_stoi: List[float] = None) -> None:
         self.name = name
-        
+        self.T = T
         self.reactants = reactants
         self.products = products
-        self.energy = energy
-        self.barrier = barrier
+        self.vib_i = vib_i
+        self.vib_t = vib_t
+        self.vib_f = vib_f
+        
+        if (vib_i == None) and (vib_t == None) and (vib_f == None):
+            # case of supplying free energies
+            self.energy = energy
+            self.barrier = barrier
+        elif (vib_i != None) and (vib_t == None) and (vib_f != None):
+            # case of supplying electronic energies of unactivated process
+            self.energy = energy + zpets(T,vib_f) - zpets(T,vib_i)
+            self.barrier = self.energy
+        elif (vib_i != None) and (vib_t != None) and (vib_f != None):
+            # case of supplying electronic energies of activated process
+            self.energy = energy + zpets(T,vib_f) - zpets(T,vib_i)
+            self.barrier = barrier + zpets(T,vib_t) - zpets(T,vib_i)
+        else:
+            warnings.warn('Strange combination of frequencies provided, please check')
+            return
+
         self.dedu = dedu
         self.dbdu = dbdu
         self.potential = potential
-
-        self.T = T 
 
         if reactant_stoi is None:
             self.reactant_stoi = np.ones(len(self.reactants))
@@ -306,11 +325,9 @@ class CoupledReactions:
         u_loc = np.argwhere(np.array([s.name for s in self.all_species]) == 'U')[0][0]
         return self.solution[:,u_loc]
 
-def create_network(path_to_setup):
+def create_network(path_to_setup, T = None):
 
     Species.reset()
-
-    T = 298.15
     V = 1
     flow_rate = 1
     reactor = 'batch'
@@ -331,7 +348,11 @@ def create_network(path_to_setup):
                 if data[0].startswith('#'):
                     continue
                 if data[0] == 'T':
-                    T = float(data[2])
+                    if T is None:
+                        print('Temperature read from input file')
+                        T = float(data[2])
+                    else:
+                        print('Two temperatures provided, value from input file ignored')
                 if data[0] == 'V':
                     V = float(data[2])
                 if data[0] == 'flow_rate':
@@ -350,7 +371,11 @@ def create_network(path_to_setup):
                 if data[0] == 'scan_rate':
                     all_species['U'].diff = -float(data[2])
                 elif any(('[' or ']') in entry for entry in data):
-                        
+                    
+                    if T is None:
+                        warnings.warn('No temperature provided')
+                        return
+
                     reactants = []
                     reactant_stoi = []
                     products = []
@@ -394,6 +419,12 @@ def create_network(path_to_setup):
                                                                         reactant_stoi = reactant_stoi,
                                                                         product_stoi = product_stoi)
 
+                elif data[0] == 'vib_i':
+                    all_rxns[f'rxn{int(len(all_rxns)-1)}'].vib_i = data[2].split(',')
+                elif data[0] == 'vib_t':
+                    all_rxns[f'rxn{int(len(all_rxns)-1)}'].vib_t = data[2].split(',')
+                elif data[0] == 'vib_f':
+                    all_rxns[f'rxn{int(len(all_rxns)-1)}'].vib_f = data[2].split(',')
                 elif data[0] == 'energy':
                     all_rxns[f'rxn{int(len(all_rxns)-1)}'].energy = float(data[2])
                 elif data[0] == 'barrier':
