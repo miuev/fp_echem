@@ -1,0 +1,22 @@
+conditions:
+  T: 298.15
+
+adsorption:
+  reactants: [A,s]
+  products: [A_s]
+  energy: -0.2
+  barrier: 0.5
+
+eley-rideal:
+  reactants: [A_s,A]
+  products: [A2,s]
+  energy: 0.1
+  barrier: 0.6
+
+concentrations:
+  A_o: 3
+  A_s_o: 0
+  A2_o: 0
+  sites_o: 0.001
+
+

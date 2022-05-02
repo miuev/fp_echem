@@ -1,8 +1,14 @@
 from dataclasses import dataclass
 from typing import List, Dict
 import warnings
+import re
+from wsgiref.simple_server import WSGIRequestHandler
 
 from yaml import load
+try:
+    from yaml import CLoader as Loader
+except:
+    from yaml import Loader as Loader
 
 from fpec.tools import zpets
 
@@ -326,7 +332,7 @@ class CoupledReactions:
         u_loc = np.argwhere(np.array([s.name for s in self.all_species]) == 'U')[0][0]
         return self.solution[:,u_loc]
 
-def create_network(path_to_setup, T = None):
+def create_network_legacy(path_to_setup, T):
 
     Species.reset()
     V = 1
@@ -372,7 +378,6 @@ def create_network(path_to_setup, T = None):
                 if data[0] == 'scan_rate':
                     all_species['U'].diff = -float(data[2])
                 elif any(('[' or ']') in entry for entry in data):
-                    
                     if T is None:
                         warnings.warn('No temperature provided')
                         return
@@ -436,7 +441,7 @@ def create_network(path_to_setup, T = None):
                     all_rxns[f'rxn{int(len(all_rxns)-1)}'].dbdu = float(data[2])
                 elif '_o' in data[0]:
                     compositions.append(data)
-            
+
         for species in all_species:
             for i in np.arange(len(compositions)):
                 if species == re.search(r'^(.+?)\_o',compositions[i][0]).group(1):
@@ -451,5 +456,53 @@ def create_network(path_to_setup, T = None):
                         all_species['sites'].concentration = float(compositions[i][2])/site_density
                     elif reactor == 'flow':
                         all_species['sites'].concentration = float(compositions[i][2])/site_density
-                    
+
     return all_species, {'reactions':all_rxns,'reactor':reactor,'V':V,'flow_rate':flow_rate,'alpha':alpha,'site_density':site_density}
+
+def create_network(path_to_setup, T, legacy = True):
+
+    if legacy == True:
+        create_network_legacy(path_to_setup, T)
+    
+    elif legacy == False:
+        Species.reset()
+        V = 1
+        flow_rate = 1
+        reactor = 'batch'
+        alpha = 1
+
+        all_species = {}
+        all_rxns = {}
+
+        with open(path_to_setup) as input_file:
+            data = load(input_file,Loader=Loader)
+        
+        for key in data:
+            if key == 'concentrations':
+                concentrations = data[key]
+            elif key == 'conditions':
+                conditions = data[key]
+            else:
+                all_rxns[key] = Reaction(data[key],T=T)
+                for species in all_rxns[key]['reactants']:
+                    all_species[species] = Species(species)
+                for species in all_rxns[key]['products']:
+                    all_species[species] = Species(species)         
+        
+        for key in all_species:
+            all_species[key].concentration = float(concentrations[key])
+
+        if 'V' in conditions:
+            V = conditions['V']
+        if 'flow_rate' in conditions:
+            flow_rate = conditions['flow_rate']
+        if 'reactor' in conditions:
+            reactor = conditions['reactor']
+        if 'alpha' in conditions:
+            alpha = conditions['alpha']
+        if 'U' in conditions:
+                all_species['U'] = conditions['U']
+                for key in all_rxns:
+                    all_rxns[key].potential = all_species['U']
+
+        return all_species, {'reactions':all_rxns,'V':V,'flow_rate':flow_rate,'reactor':reactor,'alpha':alpha}
