@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from typing import List, Dict
 import warnings
-import re
+
+from yaml import load
 
 from fpec.tools import zpets
 
