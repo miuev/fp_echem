@@ -77,7 +77,7 @@ def run(rxn = surf_rxn, initial_comps = surf_initial_comps, t = t):
 
 def test_network_solution():
     # reading in from .txt setup should yield same solution as hard code
-    a, b = fpec.rxn_network.create_network(pathlib.Path(__file__).parent / 'reactions.txt')
+    a, b = fpec.rxn_network.create_network(pathlib.Path(__file__).parent / 'reactions.txt',T=298.15)
     coupled_rxns = fpec.rxn_network.CoupledReactions(b)
     coupled_rxns.solve()
     cls_sol = coupled_rxns.solution
@@ -86,9 +86,31 @@ def test_network_solution():
 
 def test_surface_solution():
     # reading in from .txt setup should yield same solution as hard code
-    a, b = fpec.rxn_network.create_network(pathlib.Path(__file__).parent / 'surface_rxn.txt')
+    a, b = fpec.rxn_network.create_network(pathlib.Path(__file__).parent / 'surface_rxn.txt',T=298.15)
     coupled_rxns = fpec.rxn_network.CoupledReactions(b)
     coupled_rxns.solve()
     cls_sol = coupled_rxns.solution
     dir_sol = run(rxn = surf_rxn, initial_comps = surf_initial_comps, t = t)
     assert np.allclose(cls_sol,dir_sol) == True
+
+def test_yaml_vs_direct():
+    # testing .yaml input file performance
+    a, b = fpec.rxn_network.create_network(pathlib.Path(__file__).parent / 'surface_rxn.yaml',T=298.15,legacy=False)
+    coupled_rxns = fpec.rxn_network.CoupledReactions(b)
+    coupled_rxns.solve()
+    cls_sol = coupled_rxns.solution
+    dir_sol = run(rxn = surf_rxn, initial_comps = surf_initial_comps, t = t)
+    assert np.allclose(cls_sol,dir_sol) == True
+
+def test_yaml_vs_calc():
+    # testing .yaml input file vs. .txt. input file
+    a, b = fpec.rxn_network.create_network(pathlib.Path(__file__).parent / 'surface_rxn.yaml',T=298.15,legacy=False)
+    coupled_rxns = fpec.rxn_network.CoupledReactions(b)
+    coupled_rxns.solve()
+    yaml_sol = coupled_rxns.solution
+    a, b = fpec.rxn_network.create_network(pathlib.Path(__file__).parent / 'surface_rxn.txt',T=298.15)
+    coupled_rxns = fpec.rxn_network.CoupledReactions(b)
+    coupled_rxns.solve()
+    cls_sol = coupled_rxns.solution
+    assert np.allclose(yaml_sol,cls_sol) == True
+
