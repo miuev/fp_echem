@@ -35,3 +35,10 @@ def zpets(T,freqs):
         g_corr += u_vib + T*s_vib
     
     return g_corr
+
+def try_except(dictionary, key):
+    try:
+        parameter = dictionary[key]
+        return parameter
+    except:
+        pass

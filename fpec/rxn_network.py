@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import List, Dict
 import warnings
 import re
-from wsgiref.simple_server import WSGIRequestHandler
 
 from yaml import load
 try:
@@ -11,6 +10,7 @@ except:
     from yaml import Loader as Loader
 
 from fpec.tools import zpets
+from fpec.tools import try_except
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -104,7 +104,7 @@ class Reaction:
             self.product_stoi = np.ones(len(self.products))
         else:
             self.product_stoi = np.array(product_stoi)
-    
+
     @property
     def actf(self):
         try:
@@ -332,7 +332,7 @@ class CoupledReactions:
         u_loc = np.argwhere(np.array([s.name for s in self.all_species]) == 'U')[0][0]
         return self.solution[:,u_loc]
 
-def create_network_legacy(path_to_setup, T):
+def create_network_legacy(path_to_setup, T = None):
 
     Species.reset()
     V = 1
@@ -346,7 +346,7 @@ def create_network_legacy(path_to_setup, T):
     compositions = []
 
     with open(path_to_setup) as network:
-        
+
         for line in network:
             if not line.strip():
                 pass
@@ -459,11 +459,12 @@ def create_network_legacy(path_to_setup, T):
 
     return all_species, {'reactions':all_rxns,'reactor':reactor,'V':V,'flow_rate':flow_rate,'alpha':alpha,'site_density':site_density}
 
-def create_network(path_to_setup, T, legacy = True):
+def create_network(path_to_setup, T = None, legacy = True):
 
     if legacy == True:
-        create_network_legacy(path_to_setup, T)
-    
+        species, network = create_network_legacy(path_to_setup, T)
+        return species, network
+
     elif legacy == False:
         Species.reset()
         V = 1
@@ -483,11 +484,42 @@ def create_network(path_to_setup, T, legacy = True):
             elif key == 'conditions':
                 conditions = data[key]
             else:
-                all_rxns[key] = Reaction(data[key],T=T)
-                for species in all_rxns[key]['reactants']:
+                reactants = []
+                products = []
+                reac = try_except(data[key], 'reactants')
+                prod = try_except(data[key], 'products')
+                for species in reac:
                     all_species[species] = Species(species)
-                for species in all_rxns[key]['products']:
-                    all_species[species] = Species(species)         
+                    reactants.append(all_species[species])
+                for species in prod:
+                    all_species[species] = Species(species)
+                    products.append(all_species[species])
+                energy = try_except(data[key], 'energy')
+                barrier = try_except(data[key], 'barrier')
+                vib_i = try_except(data[key], 'vib_i')
+                vib_t = try_except(data[key], 'vib_t')
+                vib_f = try_except(data[key], 'vib_f')
+                dedu = try_except(data[key], 'dedu')
+                dbdu = try_except(data[key], 'dbdu')
+                potential = try_except(data[key], 'potential')
+                reactant_stoi = try_except(data[key], 'reactant_stoi')
+                product_stoi = try_except(data[key], 'product_stoi')
+
+                all_rxns[key] = Reaction(name = key,
+                                         T = T,
+                                         reactants = reactants,
+                                         products = products,
+                                         energy = energy,
+                                         barrier = barrier,
+                                         vib_i = vib_i,
+                                         vib_t = vib_t,
+                                         vib_f = vib_f,
+                                         dedu = dedu,
+                                         dbdu = dbdu,
+                                         potential = potential,
+                                         reactant_stoi = reactant_stoi,
+                                         product_stoi = product_stoi)
+                         
         
         for key in all_species:
             all_species[key].concentration = float(concentrations[key])
@@ -504,5 +536,5 @@ def create_network(path_to_setup, T, legacy = True):
                 all_species['U'] = conditions['U']
                 for key in all_rxns:
                     all_rxns[key].potential = all_species['U']
-
+                    
         return all_species, {'reactions':all_rxns,'V':V,'flow_rate':flow_rate,'reactor':reactor,'alpha':alpha}
