@@ -5,7 +5,7 @@ import pytest
 import fpec.rxn_network
 
 import numpy as np
-from scipy.integrate.odepack import odeint
+from scipy.integrate import solve_ivp
 
 # direct solution for the following homogeneous reaction scheme
 # 2[A] + [B] -> 2[C]
@@ -41,7 +41,7 @@ D_o = 0
 
 initial_comps = [A_o,B_o,C_o,D_o]
 
-def rxn(x, t):
+def rxn(t, x):
     return [- 2*kf_1*(x[0]**2)*x[1] + 2*kr_1*x[2]**2 - kf_2*x[2]*x[0] + kr_2*x[3],
             - kf_1*(x[0]**2)*x[1] + kr_1*x[2]**2,
             + 2*kf_1*(x[0]**2)*x[1] - 2*kr_1*x[2]**2 - kf_2*x[2]*x[0] + kr_2*x[3],
@@ -57,7 +57,7 @@ A2_o = 0
 s_o = 0.001
 
 surf_initial_comps = [A_o,A2_o,A_s_o,s_o/s_o]
-def surf_rxn(x, t):
+def surf_rxn(t, x):
     return [- kf_1*x[0]*x[3] + kr_1*x[2] - kf_2*x[2]*x[0] + kr_2*x[1]*x[3],
             + kf_2*x[2]*x[0] - kr_2*x[1]*x[3],
             + kf_1*x[0]*x[3] - kr_1*x[2] - kf_2*x[2]*x[0] + kr_2*x[1]*x[3],
@@ -66,14 +66,22 @@ def surf_rxn(x, t):
 t = np.linspace(0,60,int(1+60/0.01))
 
 def run(rxn = surf_rxn, initial_comps = surf_initial_comps, t = t):
+    
     initial_comps = np.array(initial_comps)
+    
     smallest = np.min(initial_comps[[initial_comps[k] != 0 for k in np.arange(len(initial_comps))]])
     oom = 1+np.ceil(abs(np.log10(smallest)))
-    if oom >= 8:
+    
+    if oom >= 12:
         atol = np.power(10.,-oom)
+        rtol = 1E-2*atol
     else:
-        atol = 1.49012E-8
-    return odeint(rxn, initial_comps, t, atol=atol)
+        atol = 1.49012E-10
+        rtol = 1E-2*atol
+    
+    solution = solve_ivp(fun = rxn, t_span = (0,60), y0 = initial_comps, t_eval = t, method = 'BDF', atol = atol, rtol = rtol)
+    
+    return solution.y.T
 
 def test_network_solution():
     # reading in from .txt setup should yield same solution as hard code

@@ -1,38 +1,43 @@
 import numpy as np
 from ase.thermochemistry import HarmonicThermo, IdealGasThermo
+from ase.build import molecule
+from ase.io import read
 
-def zpets(T,freqs):
+def zpets(T,vibs):
     
     g_corr = 0
-    
-    vibrations = {}
 
     h = 4.135667696*10**(-15) # eV*s
     
-    counter = -1
-    for entry in freqs:
+    if 'gas' in vibs:
+        vib_energies = np.array(vibs['gas']['vibs'])*1E12*h
+        geometry = vibs['gas']['geometry']
         try:
-            freq = float(entry)
-            vibrations[f'freq_{counter}'].append(freq)
-        except ValueError:
-            counter += 1
-            vibrations[f'freq_{counter}'] = [str(entry)]
+            atoms = molecule(vibs['gas']['atoms'])
+        except KeyError:
+            atoms = read(vibs['gas']['atoms'])
+        symmetrynumber = vibs['gas']['symmetry']
+        spin = vibs['gas']['spin']
+
+        thermo = IdealGasThermo(vib_energies = vib_energies,
+                                geometry = geometry,
+                                atoms = atoms,
+                                symmetrynumber = symmetrynumber,
+                                spin = spin)
+
+        h_vib = thermo.get_enthalpy(T, verbose=False)
+        s_vib = thermo.get_entropy(T, pressure=101325, verbose=False)
+
+        g_corr += h_vib - T*s_vib
     
-    for state in vibrations:
-        
-        if vibrations[state][0] == 'a':
-            thermo_calculator = HarmonicThermo
-        elif vibrations[state][0] == 'g':
-            thermo_calculator = IdealGasThermo
-        
-        modes = np.array(vibrations[state][1:])*1E12*h
-    
-        thermo = thermo_calculator(modes)
-    
+    if 'ads' in vibs:
+        vib_energies = np.array(vibs['ads']['vibs'])*1E12*h
+        thermo = HarmonicThermo(vib_energies = vib_energies)
+
         u_vib = thermo.get_internal_energy(T, verbose=False)
         s_vib = thermo.get_entropy(T,verbose=False)
-
-        g_corr += u_vib + T*s_vib
+        
+        g_corr += u_vib - T*s_vib
     
     return g_corr
 

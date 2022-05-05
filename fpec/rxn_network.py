@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from sys import set_coroutine_origin_tracking_depth
 from typing import List, Dict
 import warnings
 import re
@@ -14,7 +15,7 @@ from fpec.tools import try_except
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.integrate.odepack import odeint
+# from scipy.integrate.odepack import odeint
 
 # alternative ODE solver with more methods
 from scipy.integrate import solve_ivp
@@ -67,7 +68,8 @@ class Reaction:
                  energy: float = 0.0, barrier: float = 0.0,
                  vib_i: List[float] = None, vib_t: List[float] = None, vib_f: List[float] = None,
                  dedu: float = 0.0, dbdu: float = 0.0, potential: Species = None,
-                 reactant_stoi: List[float] = None, product_stoi: List[float] = None) -> None:
+                 reactant_stoi: List[float] = None, product_stoi: List[float] = None,
+                 sticking: float = 1, A_ads: float = None, mass: float = None) -> None:
         self.name = name
         self.T = T
         self.reactants = reactants
@@ -83,7 +85,7 @@ class Reaction:
         elif (vib_i != None) and (vib_t == None) and (vib_f != None):
             # case of supplying electronic energies of unactivated process
             self.energy = energy + zpets(T,vib_f) - zpets(T,vib_i)
-            self.barrier = self.energy
+            self.barrier = energy + zpets(T,vib_f) - zpets(T,vib_i)
         elif (vib_i != None) and (vib_t != None) and (vib_f != None):
             # case of supplying electronic energies of activated process
             self.energy = energy + zpets(T,vib_f) - zpets(T,vib_i)
@@ -95,6 +97,9 @@ class Reaction:
         self.dedu = dedu
         self.dbdu = dbdu
         self.potential = potential
+        self.sticking = sticking
+        self.A_ads = A_ads
+        self.mass = mass
 
         if reactant_stoi is None:
             self.reactant_stoi = np.ones(len(self.reactants))
@@ -133,11 +138,21 @@ class Reaction:
         
     @property
     def kf(self):
-        return (k_b*self.T/h)*np.exp(-self.actf/(k_b*self.T))
+        if 'adsorption' in self.name:
+            return self.sticking*1E-20*self.A_ads/np.sqrt(2*np.pi*6.0221408E-26*self.mass*(1.60218E-19)*k_b*self.T)
+        elif 'desorption' in self.name:
+            return np.exp(self.energy/(k_b*self.T))*self.sticking*1E-20*self.A_ads/np.sqrt(2*np.pi*6.0221408E-26*self.mass*(1.60218E-19)*k_b*self.T)
+        else:
+            return (k_b*self.T/h)*np.exp(-self.actf/(k_b*self.T))
     
     @property
     def kr(self):
-        return (k_b*self.T/h)*np.exp(-self.actr/(k_b*self.T))
+        if 'adsorption' in self.name:
+            return np.exp(self.energy/(k_b*self.T))*self.sticking*1E-20*self.A_ads/np.sqrt(2*np.pi*6.0221408E-26*self.mass*(1.60218E-19)*k_b*self.T)
+        elif 'desorption' in self.name:
+            return self.sticking*1E-20*self.A_ads/np.sqrt(2*np.pi*6.0221408E-26*self.mass*(1.60218E-19)*k_b*self.T)
+        else:
+            return (k_b*self.T/h)*np.exp(-self.actr/(k_b*self.T))
     
     def next_step(self) -> None:
         forward = np.product(np.power(self.reactants, self.reactant_stoi)) * self.kf
@@ -184,7 +199,7 @@ class CoupledReactions:
     def tof(self):
         return self._tof
     
-    def _objective(self, comps, _):
+    def _objective(self, _, comps):
         for i, s in enumerate(self.all_species):
             s.concentration = comps[i]
         # compute difference for next step
@@ -206,6 +221,8 @@ class CoupledReactions:
         """
         main mkm solver block
         """
+        
+        print('Integrating balances ...')
 
         self._t = np.linspace(start = 0, stop = self.tmax, num = int(1+self.tmax/self.dt))
         self.init_conc = np.array([float(s.concentration) for s in self.all_species])
@@ -216,21 +233,25 @@ class CoupledReactions:
             oom = int(2*(1+np.ceil(abs(np.log10(smallest)))))
             if oom >= 12:
                 atol = np.power(10.,-oom)
+                rtol = 1E-2*atol
             else:
-                atol = 1.49012E-20
+                atol = 1.49012E-10
+                rtol = 1E-2*atol
         else:
-            atol = tolerance
+            atol = tolerance[0]
+            rtol = tolerance[1]
+
+        # old solver
+        # self._solution = odeint(self._objective, self.init_conc, self._t, atol=atol)
 
         # integrating mass balances
-        self._solution = odeint(self._objective, self.init_conc, self._t, atol=atol)
-        
-        ################ uncomment these lines and comment line above to switch to solve_ivp solver
-        # solution = solve_ivp(fun = self._objective, t_span = (0,self.tmax), y0 = self.init_conc,
-        #                      method = 'BDF', dense_output = True, atol = atol)
-        # self._solution = solution.sol(self.t).T
-        ################
+        solution = solve_ivp(fun = self._objective, t_span = (0,self.tmax), y0 = self.init_conc, t_eval = self.t,
+                             method = 'BDF', atol = atol, rtol = rtol)
+        self._solution = solution.y.T
 
-        self._tof = np.diff(self.solution,axis=0)/self.dt
+        self._tof = np.gradient(self.solution,self.dt,axis=0,edge_order=2)
+
+        print('Integration complete.')
     
     def plot_results(self):
         """
@@ -245,6 +266,7 @@ class CoupledReactions:
                 plt.plot(self.t, self.solution[:, i], label=self.all_species[i].name)
             plt.xlabel('Time [s]')
             plt.ylabel('Activity or Coverage')
+            
         elif self.reac_info['reactor'] == 'flow':
             for i in range(len(self.all_species)):
                 plt.plot(self.reac_info['flow_rate']*self.t, self.solution[:, i], label=self.all_species[i].name)
@@ -290,7 +312,7 @@ class CoupledReactions:
         idx: string naming species for which to return initial rate, must match an input file name exactly
         """
         loc = np.argwhere(np.array([s.name for s in self.all_species]) == idx)[0][0]
-        print( self.tof[0,loc])
+        print(self.tof[0,loc])
     
     def current(self, idx, n=1, A_norm=1):
         """
@@ -457,9 +479,13 @@ def create_network_legacy(path_to_setup, T = None):
                     elif reactor == 'flow':
                         all_species['sites'].concentration = float(compositions[i][2])/site_density
 
+    print('Successfully built reaction network.')
+
     return all_species, {'reactions':all_rxns,'reactor':reactor,'V':V,'flow_rate':flow_rate,'alpha':alpha,'site_density':site_density}
 
 def create_network(path_to_setup, T = None, legacy = True):
+
+    print('Reading input file ...')
 
     if legacy == True:
         species, network = create_network_legacy(path_to_setup, T)
@@ -504,6 +530,9 @@ def create_network(path_to_setup, T = None, legacy = True):
                 potential = try_except(data[key], 'potential')
                 reactant_stoi = try_except(data[key], 'reactant_stoi')
                 product_stoi = try_except(data[key], 'product_stoi')
+                sticking = try_except(data[key], 'sticking')
+                A_ads = try_except(data[key], 'A_ads')
+                mass = try_except(data[key], 'mass')
 
                 all_rxns[key] = Reaction(name = key,
                                          T = T,
@@ -518,7 +547,10 @@ def create_network(path_to_setup, T = None, legacy = True):
                                          dbdu = dbdu,
                                          potential = potential,
                                          reactant_stoi = reactant_stoi,
-                                         product_stoi = product_stoi)
+                                         product_stoi = product_stoi,
+                                         sticking = sticking,
+                                         A_ads = A_ads,
+                                         mass = mass)
                          
         
         for key in all_species:
@@ -536,5 +568,7 @@ def create_network(path_to_setup, T = None, legacy = True):
                 all_species['U'] = conditions['U']
                 for key in all_rxns:
                     all_rxns[key].potential = all_species['U']
-                    
+
+        print('Successfully built reaction network.')
+        
         return all_species, {'reactions':all_rxns,'V':V,'flow_rate':flow_rate,'reactor':reactor,'alpha':alpha}
