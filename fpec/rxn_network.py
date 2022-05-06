@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from sys import set_coroutine_origin_tracking_depth
 from typing import List, Dict
 import warnings
 import re
@@ -64,14 +63,16 @@ class Species(metaclass=MetaSpecies):
         return self.concentration ** other
 
 class Reaction:
-    def __init__(self, name: str, T: float, reactants: List[Species], products: List[Species],
+    def __init__(self, name: str, T: float, P: float, reactants: List[Species], products: List[Species],
                  energy: float = 0.0, barrier: float = 0.0,
                  vib_i: List[float] = None, vib_t: List[float] = None, vib_f: List[float] = None,
                  dedu: float = 0.0, dbdu: float = 0.0, potential: Species = None,
                  reactant_stoi: List[float] = None, product_stoi: List[float] = None,
                  sticking: float = 1, A_ads: float = None, mass: float = None) -> None:
+
         self.name = name
         self.T = T
+        self.P = P
         self.reactants = reactants
         self.products = products
         self.vib_i = vib_i
@@ -84,12 +85,40 @@ class Reaction:
             self.barrier = barrier
         elif (vib_i != None) and (vib_t == None) and (vib_f != None):
             # case of supplying electronic energies of unactivated process
-            self.energy = energy + zpets(T,vib_f) - zpets(T,vib_i)
-            self.barrier = energy + zpets(T,vib_f) - zpets(T,vib_i)
+            self.energy = energy + zpets(name = self.name,
+                                         T = self.T,
+                                         P = self.P,
+                                         vibs = self.vib_f) \
+                                 - zpets(name = self.name,
+                                         T = self.T,
+                                         P = self.P,
+                                         vibs = self.vib_i)
+            self.barrier = energy + zpets(name = self.name,
+                                         T = self.T,
+                                         P = self.P,
+                                         vibs = self.vib_f) \
+                                 - zpets(name = self.name,
+                                         T = self.T,
+                                         P = self.P,
+                                         vibs = self.vib_i)
         elif (vib_i != None) and (vib_t != None) and (vib_f != None):
             # case of supplying electronic energies of activated process
-            self.energy = energy + zpets(T,vib_f) - zpets(T,vib_i)
-            self.barrier = barrier + zpets(T,vib_t) - zpets(T,vib_i)
+            self.energy = energy + zpets(name = self.name,
+                                         T = self.T,
+                                         P = self.P,
+                                         vibs = self.vib_f) \
+                                 - zpets(name = self.name,
+                                         T = self.T,
+                                         P = self.P,
+                                         vibs = self.vib_i)
+            self.barrier = barrier + zpets(name = self.name,
+                                           T = self.T,
+                                           P = self.P,
+                                           vibs = self.vib_t) \
+                                   - zpets(name = self.name,
+                                           T = self.T,
+                                           P = self.P,
+                                           vibs = self.vib_i)
         else:
             warnings.warn('Strange combination of frequencies provided, please check')
             return
@@ -138,19 +167,25 @@ class Reaction:
         
     @property
     def kf(self):
+        # Hertz-Knudsen for adsorption reactions
         if 'adsorption' in self.name:
             return self.sticking*1E-20*self.A_ads/np.sqrt(2*np.pi*6.0221408E-26*self.mass*(1.60218E-19)*k_b*self.T)
+        # Hertz-Knudsen for desorption reactions
         elif 'desorption' in self.name:
             return np.exp(self.energy/(k_b*self.T))*self.sticking*1E-20*self.A_ads/np.sqrt(2*np.pi*6.0221408E-26*self.mass*(1.60218E-19)*k_b*self.T)
+        # Eyring-Polanyi for hetero-/homogeneous reactions
         else:
             return (k_b*self.T/h)*np.exp(-self.actf/(k_b*self.T))
     
     @property
     def kr(self):
+        # Hertz-Knudsen for adsorption reactions
         if 'adsorption' in self.name:
             return np.exp(self.energy/(k_b*self.T))*self.sticking*1E-20*self.A_ads/np.sqrt(2*np.pi*6.0221408E-26*self.mass*(1.60218E-19)*k_b*self.T)
+        # Hertz-Knudsen for desorption reactions
         elif 'desorption' in self.name:
             return self.sticking*1E-20*self.A_ads/np.sqrt(2*np.pi*6.0221408E-26*self.mass*(1.60218E-19)*k_b*self.T)
+        # Eyring-Polanyi for hetero-/homogeneous reactions
         else:
             return (k_b*self.T/h)*np.exp(-self.actr/(k_b*self.T))
     
@@ -164,15 +199,21 @@ class Reaction:
             p.diff += diff*s
 
 class CoupledReactions:
-    def __init__(self, reac_info: Dict[str, Reaction], fixed: list[str] = [''], tmax: float = 60, dt: float = 0.01) -> None:
+    def __init__(self, reac_info: Dict[str, Reaction], fixed: list[str] = [''],
+                 tmax: float = 60, dt: float = 0.01, verbose = None) -> None:
+
         self.reac_info = reac_info
+
         if self.reac_info['reactor'] == 'batch':
             self.tmax = tmax
         elif self.reac_info['reactor'] == 'flow':
             self.tmax = self.reac_info['V']/self.reac_info['flow_rate']
         
         self.dt = dt
-        
+        self.verbose = verbose
+        if self.verbose == None:
+            self.verbose = ''
+            
         # get all unique species from the reactions
         all_species = {}
         for rxn in self.reac_info['reactions']:
@@ -252,7 +293,39 @@ class CoupledReactions:
         self._tof = np.gradient(self.solution,self.dt,axis=0,edge_order=2)
 
         print('Integration complete.')
-    
+        
+        if self.verbose == (('entropy') or ('all')):
+            for reaction in self.reac_info['reactions']:
+                if self.reac_info['reactions'][reaction].vib_i:
+                    print('Initial state', end = ' ')
+                    zpets(name = self.reac_info['reactions'][reaction].name,
+                          T = self.reac_info['reactions'][reaction].T,
+                          P = self.reac_info['reactions'][reaction].P,
+                          vibs = self.reac_info['reactions'][reaction].vib_i,
+                          verbose = self.verbose)
+                if self.reac_info['reactions'][reaction].vib_t:
+                    print('Transition state', end = ' ')
+                    zpets(name = self.reac_info['reactions'][reaction].name,
+                          T = self.reac_info['reactions'][reaction].T,
+                          P = self.reac_info['reactions'][reaction].P,
+                          vibs = self.reac_info['reactions'][reaction].vib_t,
+                          verbose = self.verbose)
+                if self.reac_info['reactions'][reaction].vib_f:
+                    print('Final state', end = ' ')
+                    zpets(name = self.reac_info['reactions'][reaction].name,
+                          T = self.reac_info['reactions'][reaction].T,
+                          P = self.reac_info['reactions'][reaction].P,
+                          vibs = self.reac_info['reactions'][reaction].vib_f,
+                          verbose = self.verbose)
+
+        if self.verbose == (('ks') or ('all')):
+            for reaction in self.reac_info['reactions']:
+                print('Forward rate for {} is {:.3e} s-1'.format(self.reac_info['reactions'][reaction].name,
+                                                             self.reac_info['reactions'][reaction].kf))
+                
+                print('Reverse rate for {} is {:.3e} s-1'.format(self.reac_info['reactions'][reaction].name,
+                                                             self.reac_info['reactions'][reaction].kr))
+
     def plot_results(self):
         """
         quick plotting function for diagnostics
@@ -354,7 +427,7 @@ class CoupledReactions:
         u_loc = np.argwhere(np.array([s.name for s in self.all_species]) == 'U')[0][0]
         return self.solution[:,u_loc]
 
-def create_network_legacy(path_to_setup, T = None):
+def create_network_legacy(path_to_setup, T = None, P = None):
 
     Species.reset()
     V = 1
@@ -435,14 +508,16 @@ def create_network_legacy(path_to_setup, T = None):
                     
                     if 'U' in all_species:
                         all_rxns[f'rxn{int(len(all_rxns))}'] = Reaction(name = f'rxn{len(all_rxns)}',
-                                                                        T = T, reactants = reactants,
+                                                                        T = T, P = P, 
+                                                                        reactants = reactants,
                                                                         products = products,
                                                                         potential = all_species['U'],
                                                                         reactant_stoi = reactant_stoi,
                                                                         product_stoi = product_stoi)
                     elif 'U' not in all_species:
                         all_rxns[f'rxn{int(len(all_rxns))}'] = Reaction(name = f'rxn{len(all_rxns)}',
-                                                                        T = T, reactants = reactants,
+                                                                        T = T, P = P,
+                                                                        reactants = reactants,
                                                                         products = products,
                                                                         reactant_stoi = reactant_stoi,
                                                                         product_stoi = product_stoi)
@@ -483,7 +558,7 @@ def create_network_legacy(path_to_setup, T = None):
 
     return all_species, {'reactions':all_rxns,'reactor':reactor,'V':V,'flow_rate':flow_rate,'alpha':alpha,'site_density':site_density}
 
-def create_network(path_to_setup, T = None, legacy = True):
+def create_network(path_to_setup, T = None, P = None, legacy = True):
 
     print('Reading input file ...')
 
@@ -536,6 +611,7 @@ def create_network(path_to_setup, T = None, legacy = True):
 
                 all_rxns[key] = Reaction(name = key,
                                          T = T,
+                                         P = P,
                                          reactants = reactants,
                                          products = products,
                                          energy = energy,

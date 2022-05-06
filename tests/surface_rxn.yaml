@@ -1,7 +1,7 @@
 conditions:
   T: 298.15
 
-adsorption:
+adsorb:
   reactants: [A,s]
   reactant_stoi: [1,1]
   products: [A_s]

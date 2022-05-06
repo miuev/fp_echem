@@ -103,7 +103,7 @@ def test_surface_solution():
 
 def test_yaml_vs_direct():
     # testing .yaml input file performance
-    a, b = fpec.rxn_network.create_network(pathlib.Path(__file__).parent / 'surface_rxn.yaml',T=298.15,legacy=False)
+    a, b = fpec.rxn_network.create_network(pathlib.Path(__file__).parent / 'surface_rxn.yaml',T=298.15,P=101325,legacy=False)
     coupled_rxns = fpec.rxn_network.CoupledReactions(b)
     coupled_rxns.solve()
     cls_sol = coupled_rxns.solution
@@ -112,7 +112,7 @@ def test_yaml_vs_direct():
 
 def test_yaml_vs_calc():
     # testing .yaml input file vs. .txt. input file
-    a, b = fpec.rxn_network.create_network(pathlib.Path(__file__).parent / 'surface_rxn.yaml',T=298.15,legacy=False)
+    a, b = fpec.rxn_network.create_network(pathlib.Path(__file__).parent / 'surface_rxn.yaml',T=298.15,P=101325,legacy=False)
     coupled_rxns = fpec.rxn_network.CoupledReactions(b)
     coupled_rxns.solve()
     yaml_sol = coupled_rxns.solution
