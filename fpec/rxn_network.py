@@ -165,33 +165,32 @@ class Reaction:
             act_rev = reverse_activation
         return act_rev
         
-    @property
-    def kf(self):
+    def kf(self, tune):
         # Hertz-Knudsen for adsorption reactions
         if 'adsorption' in self.name:
-            return self.sticking*1E-20*self.A_ads/np.sqrt(2*np.pi*6.0221408E-26*self.mass*(1.60218E-19)*k_b*self.T)
+            return tune*self.sticking*1E-20*self.A_ads/np.sqrt(2*np.pi*6.0221408E-26*self.mass*(1.60218E-19)*k_b*self.T)
         # Hertz-Knudsen for desorption reactions
         elif 'desorption' in self.name:
-            return np.exp(self.energy/(k_b*self.T))*self.sticking*1E-20*self.A_ads/np.sqrt(2*np.pi*6.0221408E-26*self.mass*(1.60218E-19)*k_b*self.T)
+            return tune*self.P*np.exp(-self.energy/(k_b*self.T))*self.sticking*1E-20*self.A_ads/np.sqrt(2*np.pi*6.0221408E-26*self.mass*(1.60218E-19)*k_b*self.T)
         # Eyring-Polanyi for hetero-/homogeneous reactions
         else:
-            return (k_b*self.T/h)*np.exp(-self.actf/(k_b*self.T))
+            return tune*(k_b*self.T/h)*np.exp(-self.actf/(k_b*self.T))
     
-    @property
-    def kr(self):
+    def kr(self, tune):
         # Hertz-Knudsen for adsorption reactions
         if 'adsorption' in self.name:
-            return np.exp(self.energy/(k_b*self.T))*self.sticking*1E-20*self.A_ads/np.sqrt(2*np.pi*6.0221408E-26*self.mass*(1.60218E-19)*k_b*self.T)
+            return tune*self.P*np.exp(self.energy/(k_b*self.T))*self.sticking*1E-20*self.A_ads/np.sqrt(2*np.pi*6.0221408E-26*self.mass*(1.60218E-19)*k_b*self.T)
         # Hertz-Knudsen for desorption reactions
         elif 'desorption' in self.name:
-            return self.sticking*1E-20*self.A_ads/np.sqrt(2*np.pi*6.0221408E-26*self.mass*(1.60218E-19)*k_b*self.T)
+            return tune*self.sticking*1E-20*self.A_ads/np.sqrt(2*np.pi*6.0221408E-26*self.mass*(1.60218E-19)*k_b*self.T)
+
         # Eyring-Polanyi for hetero-/homogeneous reactions
         else:
-            return (k_b*self.T/h)*np.exp(-self.actr/(k_b*self.T))
+            return tune*(k_b*self.T/h)*np.exp(-self.actr/(k_b*self.T))
     
-    def next_step(self) -> None:
-        forward = np.product(np.power(self.reactants, self.reactant_stoi)) * self.kf
-        reverse = np.product(np.power(self.products, self.product_stoi)) * self.kr
+    def next_step(self, tunef, tuner) -> None:
+        forward = np.product(np.power(self.reactants, self.reactant_stoi)) * self.kf(tune = tunef)
+        reverse = np.product(np.power(self.products, self.product_stoi)) * self.kr(tune = tuner)
         diff = forward - reverse
         for r,s in zip(self.reactants,self.reactant_stoi):
             r.diff -= diff*s
@@ -200,7 +199,7 @@ class Reaction:
 
 class CoupledReactions:
     def __init__(self, reac_info: Dict[str, Reaction], fixed: list[str] = [''],
-                 tmax: float = 60, dt: float = 0.01, verbose = None) -> None:
+                 tmax: float = 60, dt: float = 0.01, solver = 'BDF', verbose = None) -> None:
 
         self.reac_info = reac_info
 
@@ -227,6 +226,7 @@ class CoupledReactions:
         self._t = None
         self._solution = None
         self.fixed = fixed
+        self.solver = solver
     
     @property
     def t(self):
@@ -235,17 +235,34 @@ class CoupledReactions:
     @property
     def solution(self):
         return self._solution
-    
+
     @property
     def tof(self):
         return self._tof
     
-    def _objective(self, _, comps):
+    @property
+    def ss_tof(self):
+        return self._ss_tof
+    
+    @property
+    def X_rc_i(self):
+        return self._X_rc_i
+
+    def _objective(self, _, comps, rxn_rc = None, direction = None):
         for i, s in enumerate(self.all_species):
             s.concentration = comps[i]
         # compute difference for next step
         for rxn in self.reac_info['reactions']:
-            self.reac_info['reactions'][rxn].next_step()
+            if rxn == rxn_rc:
+                if direction == 'forward':
+                    self.reac_info['reactions'][rxn].next_step(tunef = 0.999, tuner = 1)
+                elif direction == 'reverse':
+                    self.reac_info['reactions'][rxn].next_step(tunef = 1, tuner = 0.999)
+                else:    
+                    self.reac_info['reactions'][rxn].next_step(tunef = 0.999, tuner = 0.999)
+            else:
+                self.reac_info['reactions'][rxn].next_step(tunef = 1, tuner = 1)
+
         diffs = []
         for s in self.all_species:
             if s.name == 'H+':
@@ -258,7 +275,7 @@ class CoupledReactions:
                 s.diff = 0
         return diffs
     
-    def solve(self, tolerance='Auto'):
+    def solve(self, tolerance='Auto', product = '', X_rc = None):
         """
         main mkm solver block
         """
@@ -267,7 +284,8 @@ class CoupledReactions:
 
         self._t = np.linspace(start = 0, stop = self.tmax, num = int(1+self.tmax/self.dt))
         self.init_conc = np.array([float(s.concentration) for s in self.all_species])
-        
+        self. product = product
+
         if tolerance == 'Auto':
             # auto-ranging tolerance for numerical stability
             smallest = np.min(self.init_conc[[self.init_conc[k] != 0 for k in np.arange(len(self.init_conc))]])
@@ -287,10 +305,93 @@ class CoupledReactions:
 
         # integrating mass balances
         solution = solve_ivp(fun = self._objective, t_span = (0,self.tmax), y0 = self.init_conc, t_eval = self.t,
-                             method = 'BDF', atol = atol, rtol = rtol)
+                             method = self.solver, atol = atol, rtol = rtol)
         self._solution = solution.y.T
+        
+        self._tof = np.gradient(self.solution,self.dt,axis=0,edge_order=2)#include product marker and change to rates
+        
+        self._ss_tof = self.calculate_ss_tof(self.product)
+        
+        if X_rc == 'total':
+            X_rc_i = {}
+            for rxn_rc in self.reac_info['reactions']:
+                rc_solution = solve_ivp(fun = lambda _, comps: self._objective(_, comps, rxn_rc), t_span = (0,self.tmax), y0 = self.init_conc, t_eval = self.t,
+                                        method = self.solver, atol = atol, rtol = rtol).y.T
+                ss_k = self.reac_info['reactions'][rxn_rc].kf(tune = 1.0)
+                rc_k_f = self.reac_info['reactions'][rxn_rc].kf(tune = 0.999)
+                rc_k_r = self.reac_info['reactions'][rxn_rc].kr(tune = 0.999)
 
-        self._tof = np.gradient(self.solution,self.dt,axis=0,edge_order=2)
+                rc_tof = 0
+                for species in self.all_species:
+                    if ((product in species.name) and (species.name != product)):
+                        for rxn in self.reac_info['reactions']:
+                            if species.name in [i.name for i in self.reac_info['reactions'][rxn].reactants]:
+                                concentration = 1
+                                for n, i in enumerate(self.all_species):
+                                    if i.name in [i.name for i in self.reac_info['reactions'][rxn].reactants]:
+                                        concentration *= rc_solution[-1,n]
+                                if rxn == rxn_rc:
+                                    rc_tof += rc_k_f*concentration
+                                else:
+                                    rc_tof += self.reac_info['reactions'][rxn].kf(tune = 1.0)*concentration
+                    if species.name == product:
+                        for rxn in self.reac_info['reactions']:
+                            if species.name in [i.name for i in self.reac_info['reactions'][rxn].products]:
+                                concentration = 1
+                                for n, i in enumerate(self.all_species):
+                                    if i.name in [i.name for i in self.reac_info['reactions'][rxn].products]:
+                                        concentration *= rc_solution[-1,n]
+                                if rxn == rxn_rc:
+                                    rc_tof -= rc_k_r*concentration
+                                else:
+                                    rc_tof -= self.reac_info['reactions'][rxn].kr(tune = 1.0)*concentration
+                
+                X_rc_i[rxn_rc] = (np.log(self.ss_tof)-np.log(rc_tof))/(np.log(ss_k)-np.log(rc_k_f))
+            self._X_rc_i = X_rc_i
+
+        elif X_rc == 'individual':
+            X_rc_i = {}
+            for rxn_rc in self.reac_info['reactions']:
+                for direction in ['forward','reverse']:
+                    rc_solution = solve_ivp(fun = lambda _, comps: self._objective(_, comps, rxn_rc, direction), t_span = (0,self.tmax), y0 = self.init_conc, t_eval = self.t,
+                                            method = self.solver, atol = atol, rtol = rtol).y.T
+                    if direction == 'forward':
+                        ss_k = self.reac_info['reactions'][rxn_rc].kf(tune = 1.0)
+                        rc_k = self.reac_info['reactions'][rxn_rc].kf(tune = 0.999)
+                    elif direction == 'reverse':
+                        ss_k = self.reac_info['reactions'][rxn_rc].kr(tune = 1.0)
+                        rc_k = self.reac_info['reactions'][rxn_rc].kr(tune = 0.999)
+
+                    rc_tof = 0
+                    for species in self.all_species:
+                        if ((product in species.name) and (species.name != product)):
+                            for rxn in self.reac_info['reactions']:
+                                if species.name in [i.name for i in self.reac_info['reactions'][rxn].reactants]:
+                                    concentration = 1
+                                    for n, i in enumerate(self.all_species):
+                                        if i.name in [i.name for i in self.reac_info['reactions'][rxn].reactants]:
+                                            concentration *= rc_solution[-1,n]
+                                    if ((rxn == rxn_rc) and (direction == 'forward')):
+                                        rc_tof += rc_k*concentration    
+                                    else:
+                                        rc_tof += self.reac_info['reactions'][rxn].kf(tune = 1.0)*concentration
+                        if species.name == product:
+                            for rxn in self.reac_info['reactions']:
+                                if species.name in [i.name for i in self.reac_info['reactions'][rxn].products]:
+                                    concentration = 1
+                                    for n, i in enumerate(self.all_species):
+                                        if i.name in [i.name for i in self.reac_info['reactions'][rxn].products]:
+                                            concentration *= rc_solution[-1,n]
+                                    if ((rxn == rxn_rc) and (direction == 'reverse')):
+                                        rc_tof -= rc_k*concentration    
+                                    else:
+                                        rc_tof -= self.reac_info['reactions'][rxn].kr(tune = 1.0)*concentration
+                    
+                    X_rc_i[rxn_rc+'_'+direction] = (np.log(self.ss_tof)-np.log(rc_tof))/(np.log(ss_k)-np.log(rc_k))
+            self._X_rc_i = X_rc_i
+
+        # if n_x == True:
+
 
         print('Integration complete.')
         
@@ -321,10 +422,23 @@ class CoupledReactions:
         if self.verbose == (('ks') or ('all')):
             for reaction in self.reac_info['reactions']:
                 print('Forward rate for {} is {:.3e} s-1'.format(self.reac_info['reactions'][reaction].name,
-                                                             self.reac_info['reactions'][reaction].kf))
-                
+                                                             self.reac_info['reactions'][reaction].kf(tune = 1)))
                 print('Reverse rate for {} is {:.3e} s-1'.format(self.reac_info['reactions'][reaction].name,
-                                                             self.reac_info['reactions'][reaction].kr))
+                                                             self.reac_info['reactions'][reaction].kr(tune = 1)))
+                print(self.reac_info['reactions'][reaction].energy)
+
+    def calculate_ss_tof(self, product):
+        tof = 0
+        for species in self.all_species:
+            if ((product in species.name) and (species.name != product)):
+                for rxn in self.reac_info['reactions']:
+                    if species.name in [i.name for i in self.reac_info['reactions'][rxn].reactants]:
+                        tof += self.reac_info['reactions'][rxn].kf(tune = 1.0)*np.product([j.concentration for j in self.all_species if j.name in [i.name for i in self.reac_info['reactions'][rxn].reactants]])
+            if species.name == product:
+                for rxn in self.reac_info['reactions']:
+                    if species.name in [i.name for i in self.reac_info['reactions'][rxn].products]:
+                        tof -= self.reac_info['reactions'][rxn].kr(tune = 1.0)*np.product([j.concentration for j in self.all_species if j.name in [i.name for i in self.reac_info['reactions'][rxn].products]])
+        return tof
 
     def plot_results(self):
         """
