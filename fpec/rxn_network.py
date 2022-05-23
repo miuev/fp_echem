@@ -78,51 +78,8 @@ class Reaction:
         self.vib_i = vib_i
         self.vib_t = vib_t
         self.vib_f = vib_f
-        
-        if (vib_i == None) and (vib_t == None) and (vib_f == None):
-            # case of supplying free energies
-            self.energy = energy
-            self.barrier = barrier
-        elif (vib_i != None) and (vib_t == None) and (vib_f != None):
-            # case of supplying electronic energies of unactivated process
-            self.energy = energy + zpets(name = self.name,
-                                         T = self.T,
-                                         P = self.P,
-                                         vibs = self.vib_f) \
-                                 - zpets(name = self.name,
-                                         T = self.T,
-                                         P = self.P,
-                                         vibs = self.vib_i)
-            self.barrier = energy + zpets(name = self.name,
-                                         T = self.T,
-                                         P = self.P,
-                                         vibs = self.vib_f) \
-                                 - zpets(name = self.name,
-                                         T = self.T,
-                                         P = self.P,
-                                         vibs = self.vib_i)
-        elif (vib_i != None) and (vib_t != None) and (vib_f != None):
-            # case of supplying electronic energies of activated process
-            self.energy = energy + zpets(name = self.name,
-                                         T = self.T,
-                                         P = self.P,
-                                         vibs = self.vib_f) \
-                                 - zpets(name = self.name,
-                                         T = self.T,
-                                         P = self.P,
-                                         vibs = self.vib_i)
-            self.barrier = barrier + zpets(name = self.name,
-                                           T = self.T,
-                                           P = self.P,
-                                           vibs = self.vib_t) \
-                                   - zpets(name = self.name,
-                                           T = self.T,
-                                           P = self.P,
-                                           vibs = self.vib_i)
-        else:
-            warnings.warn('Strange combination of frequencies provided, please check')
-            return
-
+        self.energy = energy
+        self.barrier = barrier
         self.dedu = dedu
         self.dbdu = dbdu
         self.potential = potential
@@ -138,14 +95,140 @@ class Reaction:
             self.product_stoi = np.ones(len(self.products))
         else:
             self.product_stoi = np.array(product_stoi)
+        
+
+
+        if (self.vib_i == None) and (self.vib_t == None) and (self.vib_f == None):
+        # case of supplying free energies
+            self._free_energy = self.energy
+            self._free_barrier = self.barrier
+        elif (self.vib_i != None) and (self.vib_t == None) and (self.vib_f != None):
+        # case of supplying electronic energies of unactivated process
+            self._free_energy = self.energy + zpets(name = self.name,
+                                                    T = self.T,
+                                                    P = self.P,
+                                                    vibs = self.vib_f) \
+                                            - zpets(name = self.name,
+                                                    T = self.T,
+                                                    P = self.P,
+                                                    vibs = self.vib_i)
+            self._free_barrier = self.energy + zpets(name = self.name,
+                                                     T = self.T,
+                                                     P = self.P,
+                                                     vibs = self.vib_f) \
+                                             - zpets(name = self.name,
+                                                     T = self.T,
+                                                     P = self.P,
+                                                     vibs = self.vib_i)
+        elif (self.vib_i != None) and (self.vib_t != None) and (self.vib_f != None):
+        # case of supplying electronic energies of activated process
+            self._free_energy = self.energy + zpets(name = self.name,
+                                                    T = self.T,
+                                                    P = self.P,
+                                                    vibs = self.vib_f) \
+                                            - zpets(name = self.name,
+                                                    T = self.T,
+                                                    P = self.P,
+                                                    vibs = self.vib_i)
+            self._free_barrier = self.barrier + zpets(name = self.name,
+                                                      T = self.T,
+                                                      P = self.P,
+                                                      vibs = self.vib_t) \
+                                              - zpets(name = self.name,
+                                                      T = self.T,
+                                                      P = self.P,
+                                                      vibs = self.vib_i)
+        else:
+            warnings.warn('Strange combination of frequencies provided, please check')
+            return
+
+    # @property
+    # def energy(self):
+    #     return self._energy
+
+    # @energy.setter
+    # def energy(self, energy_update):
+    #     self._energy = energy_update
+
+    # @property
+    # def barrier(self):
+    #     return self._barrier
+
+    # @barrier.setter
+    # def barrier(self, barrier_update):
+    #     self._barrier = barrier_update
+
+    @property
+    def free_energy(self):
+        return self._free_energy
+
+    @free_energy.setter
+    def free_energy(self, pressure_update):
+        if (self.vib_i == None) and (self.vib_t == None) and (self.vib_f == None):
+        # case of supplying free energies
+            self._free_energy = self.energy
+
+        elif (self.vib_i != None) and (self.vib_t == None) and (self.vib_f != None):
+        # case of supplying electronic energies of unactivated process
+            self._free_energy = self.energy + zpets(name = self.name,
+                                                    T = self.T,
+                                                    P = pressure_update,
+                                                    vibs = self.vib_f) \
+                                            - zpets(name = self.name,
+                                                    T = self.T,
+                                                    P = pressure_update,
+                                                    vibs = self.vib_i)
+
+        elif (self.vib_i != None) and (self.vib_t != None) and (self.vib_f != None):
+        # case of supplying electronic energies of activated process
+            self._free_energy = self.energy + zpets(name = self.name,
+                                                    T = self.T,
+                                                    P = pressure_update,
+                                                    vibs = self.vib_f) \
+                                            - zpets(name = self.name,
+                                                    T = self.T,
+                                                    P = pressure_update,
+                                                    vibs = self.vib_i)
+
+    @property
+    def free_barrier(self):
+        return self._free_barrier
+        
+    @free_barrier.setter
+    def free_barrier(self, pressure_update):
+        if (self.vib_i == None) and (self.vib_t == None) and (self.vib_f == None):
+        # case of supplying free energies
+            self._free_barrier = self.barrier
+        
+        elif (self.vib_i != None) and (self.vib_t == None) and (self.vib_f != None):
+        # case of supplying electronic energies of unactivated process
+            self._free_barrier = self.energy + zpets(name = self.name,
+                                                     T = self.T,
+                                                     P = pressure_update,
+                                                     vibs = self.vib_f) \
+                                             - zpets(name = self.name,
+                                                     T = self.T,
+                                                     P = pressure_update,
+                                                     vibs = self.vib_i)
+    
+        elif (self.vib_i != None) and (self.vib_t != None) and (self.vib_f != None):
+            # case of supplying electronic energies of activated process
+            self._free_barrier = self.barrier + zpets(name = self.name,
+                                                      T = self.T,
+                                                      P = pressure_update,
+                                                      vibs = self.vib_t) \
+                                              - zpets(name = self.name,
+                                                      T = self.T,
+                                                      P = pressure_update,
+                                                      vibs = self.vib_i)
 
     @property
     def actf(self):
         try:
-            tc_barrier = np.max([self.energy + self.dedu*self.potential.concentration,
-                                 self.barrier + self.dbdu*self.potential.concentration],axis=0)
+            tc_barrier = np.max([self.free_energy + self.dedu*self.potential.concentration,
+                                 self.free_barrier + self.dbdu*self.potential.concentration],axis=0)
         except:
-            tc_barrier = np.max([self.energy,self.barrier],axis=0)
+            tc_barrier = np.max([self.free_energy,self.free_barrier],axis=0)
         activation = tc_barrier
         if activation < 0:
             return 0
@@ -154,11 +237,11 @@ class Reaction:
     @property
     def actr(self):
         try:
-            reverse_activation = np.max([-self.energy - self.dedu*self.potential.concentration,
-                                         (self.barrier - self.dedu*self.potential.concentration) -\
-                                         (self.energy - self.dedu*self.potential.concentration)],axis=0)
+            reverse_activation = np.max([-self.free_energy - self.dedu*self.potential.concentration,
+                                         (self.free_barrier - self.dedu*self.potential.concentration) -\
+                                         (self.free_energy - self.dedu*self.potential.concentration)],axis=0)
         except:
-            reverse_activation = np.max([-self.energy, self.barrier - self.energy],axis=0)
+            reverse_activation = np.max([-self.free_energy, self.free_barrier - self.free_energy],axis=0)
         if reverse_activation <= 0:
             act_rev = 0
         else:
@@ -171,7 +254,7 @@ class Reaction:
             return tune*self.sticking*1E-20*self.A_ads/np.sqrt(2*np.pi*6.0221408E-26*self.mass*(1.60218E-19)*k_b*self.T)
         # Hertz-Knudsen for desorption reactions
         elif 'desorption' in self.name:
-            return tune*self.P*np.exp(-self.energy/(k_b*self.T))*self.sticking*1E-20*self.A_ads/np.sqrt(2*np.pi*6.0221408E-26*self.mass*(1.60218E-19)*k_b*self.T)
+            return tune*self.P*np.exp(-self.free_energy/(k_b*self.T))*self.sticking*1E-20*self.A_ads/np.sqrt(2*np.pi*6.0221408E-26*self.mass*(1.60218E-19)*k_b*self.T)
         # Eyring-Polanyi for hetero-/homogeneous reactions
         else:
             return tune*(k_b*self.T/h)*np.exp(-self.actf/(k_b*self.T))
@@ -179,7 +262,7 @@ class Reaction:
     def kr(self, tune):
         # Hertz-Knudsen for adsorption reactions
         if 'adsorption' in self.name:
-            return tune*self.P*np.exp(self.energy/(k_b*self.T))*self.sticking*1E-20*self.A_ads/np.sqrt(2*np.pi*6.0221408E-26*self.mass*(1.60218E-19)*k_b*self.T)
+            return tune*self.P*np.exp(self.free_energy/(k_b*self.T))*self.sticking*1E-20*self.A_ads/np.sqrt(2*np.pi*6.0221408E-26*self.mass*(1.60218E-19)*k_b*self.T)
         # Hertz-Knudsen for desorption reactions
         elif 'desorption' in self.name:
             return tune*self.sticking*1E-20*self.A_ads/np.sqrt(2*np.pi*6.0221408E-26*self.mass*(1.60218E-19)*k_b*self.T)
@@ -247,6 +330,14 @@ class CoupledReactions:
     @property
     def X_rc_i(self):
         return self._X_rc_i
+    
+    @property
+    def E_app(self):
+        return self._E_app
+    
+    @property
+    def n_x(self):
+        return self._n_x
 
     def _objective(self, _, comps, rxn_rc = None, direction = None):
         for i, s in enumerate(self.all_species):
@@ -275,16 +366,16 @@ class CoupledReactions:
                 s.diff = 0
         return diffs
     
-    def solve(self, tolerance='Auto', product = '', X_rc = None):
+    def solve(self, tolerance='Auto', product = '', X_rc = None, n_x = None):
         """
         main mkm solver block
         """
         
         print('Integrating balances ...')
-
+        
         self._t = np.linspace(start = 0, stop = self.tmax, num = int(1+self.tmax/self.dt))
         self.init_conc = np.array([float(s.concentration) for s in self.all_species])
-        self. product = product
+        self.product = product
 
         if tolerance == 'Auto':
             # auto-ranging tolerance for numerical stability
@@ -308,7 +399,7 @@ class CoupledReactions:
                              method = self.solver, atol = atol, rtol = rtol)
         self._solution = solution.y.T
         
-        self._tof = np.gradient(self.solution,self.dt,axis=0,edge_order=2)#include product marker and change to rates
+        self._tof = self.calculate_tof(self.product)
         
         self._ss_tof = self.calculate_ss_tof(self.product)
         
@@ -350,8 +441,11 @@ class CoupledReactions:
             self._X_rc_i = X_rc_i
 
         elif X_rc == 'individual':
+            act_is = []
             X_rc_i = {}
             for rxn_rc in self.reac_info['reactions']:
+                act_is.append(self.reac_info['reactions'][rxn_rc].actf)
+                act_is.append(self.reac_info['reactions'][rxn_rc].actr)
                 for direction in ['forward','reverse']:
                     rc_solution = solve_ivp(fun = lambda _, comps: self._objective(_, comps, rxn_rc, direction), t_span = (0,self.tmax), y0 = self.init_conc, t_eval = self.t,
                                             method = self.solver, atol = atol, rtol = rtol).y.T
@@ -363,35 +457,124 @@ class CoupledReactions:
                         rc_k = self.reac_info['reactions'][rxn_rc].kr(tune = 0.999)
 
                     rc_tof = 0
-                    for species in self.all_species:
-                        if ((product in species.name) and (species.name != product)):
-                            for rxn in self.reac_info['reactions']:
-                                if species.name in [i.name for i in self.reac_info['reactions'][rxn].reactants]:
-                                    concentration = 1
-                                    for n, i in enumerate(self.all_species):
-                                        if i.name in [i.name for i in self.reac_info['reactions'][rxn].reactants]:
-                                            concentration *= rc_solution[-1,n]
-                                    if ((rxn == rxn_rc) and (direction == 'forward')):
-                                        rc_tof += rc_k*concentration    
-                                    else:
-                                        rc_tof += self.reac_info['reactions'][rxn].kf(tune = 1.0)*concentration
-                        if species.name == product:
-                            for rxn in self.reac_info['reactions']:
-                                if species.name in [i.name for i in self.reac_info['reactions'][rxn].products]:
-                                    concentration = 1
-                                    for n, i in enumerate(self.all_species):
-                                        if i.name in [i.name for i in self.reac_info['reactions'][rxn].products]:
-                                            concentration *= rc_solution[-1,n]
-                                    if ((rxn == rxn_rc) and (direction == 'reverse')):
-                                        rc_tof -= rc_k*concentration    
-                                    else:
-                                        rc_tof -= self.reac_info['reactions'][rxn].kr(tune = 1.0)*concentration
-                    
-                    X_rc_i[rxn_rc+'_'+direction] = (np.log(self.ss_tof)-np.log(rc_tof))/(np.log(ss_k)-np.log(rc_k))
+                    for rxn in self.reac_info['reactions']:
+                        if product in [i.name for i in self.reac_info['reactions'][rxn].products]:
+                            concentration_f = 1
+                            concentration_r = 1
+                            for n, i in enumerate(self.all_species):
+                                if i.name in [i.name for i in self.reac_info['reactions'][rxn].reactants]:
+                                    concentration_f *= rc_solution[-1,n]
+                                if i.name in [i.name for i in self.reac_info['reactions'][rxn].products]:
+                                    concentration_r *= rc_solution[-1,n]
+                            if ((rxn == rxn_rc) and (direction == 'forward')):
+                                rc_tof += self.reac_info['reactions'][rxn].kf(tune = 0.999)*concentration_f
+                                rc_tof -= self.reac_info['reactions'][rxn].kr(tune = 1.0)*concentration_r
+                            elif ((rxn == rxn_rc) and (direction == 'reverse')):
+                                rc_tof += self.reac_info['reactions'][rxn].kf(tune = 1.0)*concentration_f
+                                rc_tof -= self.reac_info['reactions'][rxn].kr(tune = 0.999)*concentration_r
+                            else:
+                                rc_tof += self.reac_info['reactions'][rxn].kf(tune = 1.0)*concentration_f
+                                rc_tof -= self.reac_info['reactions'][rxn].kr(tune = 1.0)*concentration_r
+                        if product in [i.name for i in self.reac_info['reactions'][rxn].reactants]:
+                            concentration_f = 1
+                            concentration_r = 1
+                            for n, i in enumerate(self.all_species):
+                                if i.name in [i.name for i in self.reac_info['reactions'][rxn].reactants]:
+                                    concentration_f *= rc_solution[-1,n]
+                                if i.name in [i.name for i in self.reac_info['reactions'][rxn].products]:
+                                    concentration_r *= rc_solution[-1,n]
+                            if ((rxn == rxn_rc) and (direction == 'forward')):
+                                rc_tof -= self.reac_info['reactions'][rxn].kf(tune = 0.999)*concentration_f
+                                rc_tof += self.reac_info['reactions'][rxn].kr(tune = 1.0)*concentration_r
+                            if ((rxn == rxn_rc) and (direction == 'reverse')):
+                                rc_tof -= self.reac_info['reactions'][rxn].kf(tune = 1.0)*concentration_f
+                                rc_tof += self.reac_info['reactions'][rxn].kr(tune = 0.999)*concentration_r
+                            else:
+                                rc_tof -= self.reac_info['reactions'][rxn].kf(tune = 1.0)*concentration_f
+                                rc_tof += self.reac_info['reactions'][rxn].kr(tune = 1.0)*concentration_r
+                    X_rc_i[rxn_rc+'_'+direction] = (ss_k/self.ss_tof)*((self.ss_tof)-(rc_tof))/((ss_k)-(rc_k))
             self._X_rc_i = X_rc_i
+            self._E_app = np.dot(np.fromiter(self.X_rc_i.values(),dtype=float),np.array(act_is))
 
-        # if n_x == True:
+        if n_x:
+            if type(n_x) != list:
+                n_x = [n_x]
+            
+            indices = []
+            order_name = []
+            for i, j in enumerate(self.all_species):
+                if j.name in n_x:
+                    indices.append(i)
+                    order_name.append(j.name)
 
+            P_original = 0
+            for gas_phase_species in indices:
+                P_original += self.all_species[gas_phase_species].concentration
+                    
+            ro = np.zeros(len(n_x))
+            for num, index in enumerate(indices):  
+                
+                original_conc = self.all_species[index].concentration
+                
+                self.all_species[index].concentration = original_conc*0.999
+                self.init_conc = np.array([float(s.concentration) for s in self.all_species])          
+
+                P_total = 0
+                for gas_phase_species in indices:
+                    P_total += self.all_species[gas_phase_species].concentration
+                for rxn in self.reac_info['reactions']:
+                    self.reac_info['reactions'][rxn].P = P_total
+                    self.reac_info['reactions'][rxn].free_energy = P_total
+                    self.reac_info['reactions'][rxn].free_barrier = P_total
+
+                ro_solution = solve_ivp(fun = lambda _, comps: self._objective(_, comps), t_span = (0,self.tmax), y0 = self.init_conc, t_eval = self.t,
+                                        method = self.solver, atol = atol, rtol = rtol).y.T
+                
+                ro_tof = 0
+                for rxn in self.reac_info['reactions']:
+                    if product in [i.name for i in self.reac_info['reactions'][rxn].products]:
+                        concentration_f = 1
+                        concentration_r = 1
+                        for n, i in enumerate(self.all_species):
+                            if i.name in [i.name for i in self.reac_info['reactions'][rxn].reactants]:
+                                concentration_f *= ro_solution[-1,n]
+                            if i.name in [i.name for i in self.reac_info['reactions'][rxn].products]:
+                                concentration_r *= ro_solution[-1,n]
+                        ro_tof += self.reac_info['reactions'][rxn].kf(tune = 1.0)*concentration_f
+                        ro_tof -= self.reac_info['reactions'][rxn].kr(tune = 1.0)*concentration_r
+                    if product in [i.name for i in self.reac_info['reactions'][rxn].reactants]:
+                        concentration_f = 1
+                        concentration_r = 1
+                        for n, i in enumerate(self.all_species):
+                            if i.name in [i.name for i in self.reac_info['reactions'][rxn].reactants]:
+                                concentration_f *= ro_solution[-1,n]
+                            if i.name in [i.name for i in self.reac_info['reactions'][rxn].products]:
+                                concentration_r *= ro_solution[-1,n]
+                        ro_tof -= self.reac_info['reactions'][rxn].kf(tune = 1.0)*concentration_f
+                        ro_tof += self.reac_info['reactions'][rxn].kr(tune = 1.0)*concentration_r
+                ro[num] = (original_conc/self.ss_tof)*((self.ss_tof)-(ro_tof))/((original_conc)-(self.all_species[index].concentration))
+                for reaction in ['concerted_adsorption']:
+                    if 'adsorption' in reaction:
+                        print('Forward rate for {} is {:.3e} s-1'.format(self.reac_info['reactions'][reaction].name,
+                                                                    self.reac_info['reactions'][reaction].kf(tune = 1)))
+                        print('Reverse rate for {} is {:.3e} s-1'.format(self.reac_info['reactions'][reaction].name,
+                                                                    self.reac_info['reactions'][reaction].kr(tune = 1)))
+                        print(self.reac_info['reactions'][reaction].free_energy)
+                    if 'desorption' in reaction:
+                        print('Forward rate for {} is {:.3e} s-1'.format(self.reac_info['reactions'][reaction].name,
+                                                                    self.reac_info['reactions'][reaction].kf(tune = 1)))
+                        print('Reverse rate for {} is {:.3e} s-1'.format(self.reac_info['reactions'][reaction].name,
+                                                                    self.reac_info['reactions'][reaction].kr(tune = 1)))
+                        print(self.reac_info['reactions'][reaction].free_energy)
+
+                self.all_species[index].concentration = original_conc
+                self.init_conc = np.array([float(s.concentration) for s in self.all_species])
+                for rxn in self.reac_info['reactions']:
+                    self.reac_info['reactions'][rxn].P = P_original
+                    self.reac_info['reactions'][rxn].free_energy = P_original
+                    self.reac_info['reactions'][rxn].free_barrier = P_original
+            
+            self._n_x = {'species':order_name,'order':ro}
 
         print('Integration complete.')
         
@@ -425,19 +608,57 @@ class CoupledReactions:
                                                              self.reac_info['reactions'][reaction].kf(tune = 1)))
                 print('Reverse rate for {} is {:.3e} s-1'.format(self.reac_info['reactions'][reaction].name,
                                                              self.reac_info['reactions'][reaction].kr(tune = 1)))
-                print(self.reac_info['reactions'][reaction].energy)
+                print(self.reac_info['reactions'][reaction].free_energy)
+
+    def calculate_tof(self, product):
+        length = self.solution.shape[0]
+        tof = np.zeros(length)
+        for rxn in self.reac_info['reactions']:
+            if product in [i.name for i in self.reac_info['reactions'][rxn].products]:
+                concentration_f = np.ones(length)
+                concentration_r = np.ones(length)
+                for n, i in enumerate(self.all_species):
+                    if i.name in [i.name for i in self.reac_info['reactions'][rxn].reactants]:
+                        concentration_f = np.multiply(concentration_f,self.solution[:,n])
+                    if i.name in [i.name for i in self.reac_info['reactions'][rxn].products]:
+                        concentration_r = np.multiply(concentration_r,self.solution[:,n])
+                tof = np.add(tof,self.reac_info['reactions'][rxn].kf(tune = 1.0)*concentration_f)
+                tof = np.subtract(tof,self.reac_info['reactions'][rxn].kr(tune = 1.0)*concentration_r)
+            if product in [i.name for i in self.reac_info['reactions'][rxn].reactants]:
+                concentration_f = np.ones(length)
+                concentration_r = np.ones(length)
+                for n, i in enumerate(self.all_species):
+                    if i.name in [i.name for i in self.reac_info['reactions'][rxn].reactants]:
+                        concentration_f = np.multiply(concentration_f,self.solution[:,n])
+                    if i.name in [i.name for i in self.reac_info['reactions'][rxn].products]:
+                        concentration_r = np.multiply(concentration_r,self.solution[:,n])
+                tof = np.subtract(tof,self.reac_info['reactions'][rxn].kf(tune = 1.0)*concentration_f)
+                tof = np.add(tof,self.reac_info['reactions'][rxn].kr(tune = 1.0)*concentration_r)
+        return tof
 
     def calculate_ss_tof(self, product):
         tof = 0
-        for species in self.all_species:
-            if ((product in species.name) and (species.name != product)):
-                for rxn in self.reac_info['reactions']:
-                    if species.name in [i.name for i in self.reac_info['reactions'][rxn].reactants]:
-                        tof += self.reac_info['reactions'][rxn].kf(tune = 1.0)*np.product([j.concentration for j in self.all_species if j.name in [i.name for i in self.reac_info['reactions'][rxn].reactants]])
-            if species.name == product:
-                for rxn in self.reac_info['reactions']:
-                    if species.name in [i.name for i in self.reac_info['reactions'][rxn].products]:
-                        tof -= self.reac_info['reactions'][rxn].kr(tune = 1.0)*np.product([j.concentration for j in self.all_species if j.name in [i.name for i in self.reac_info['reactions'][rxn].products]])
+        for rxn in self.reac_info['reactions']:
+            if product in [i.name for i in self.reac_info['reactions'][rxn].products]:
+                concentration_f = 1
+                concentration_r = 1
+                for n, i in enumerate(self.all_species):
+                    if i.name in [i.name for i in self.reac_info['reactions'][rxn].reactants]:
+                        concentration_f *= self.solution[-1,n]
+                    if i.name in [i.name for i in self.reac_info['reactions'][rxn].products]:
+                        concentration_r *= self.solution[-1,n]
+                tof += self.reac_info['reactions'][rxn].kf(tune = 1.0)*concentration_f
+                tof -= self.reac_info['reactions'][rxn].kr(tune = 1.0)*concentration_r
+            if product in [i.name for i in self.reac_info['reactions'][rxn].reactants]:
+                concentration_f = 1
+                concentration_r = 1
+                for n, i in enumerate(self.all_species):
+                    if i.name in [i.name for i in self.reac_info['reactions'][rxn].reactants]:
+                        concentration_f *= self.solution[-1,n]
+                    if i.name in [i.name for i in self.reac_info['reactions'][rxn].products]:
+                        concentration_r *= self.solution[-1,n]
+                tof -= self.reac_info['reactions'][rxn].kf(tune = 1.0)*concentration_f
+                tof += self.reac_info['reactions'][rxn].kr(tune = 1.0)*concentration_r
         return tof
 
     def plot_results(self):
@@ -693,6 +914,18 @@ def create_network(path_to_setup, T = None, P = None, legacy = True):
         with open(path_to_setup) as input_file:
             data = load(input_file,Loader=Loader)
         
+        concentrations = data['concentrations']
+        conditions = None
+
+        if ((type(P) == float) or (type(P) == int)):
+            P_total = P
+        elif P != None:
+            P_total = 0
+            for gas_phase_species in P:
+                P_total += concentrations[gas_phase_species]
+        elif P == None:
+            P_total = 0
+
         for key in data:
             if key == 'concentrations':
                 concentrations = data[key]
@@ -725,7 +958,7 @@ def create_network(path_to_setup, T = None, P = None, legacy = True):
 
                 all_rxns[key] = Reaction(name = key,
                                          T = T,
-                                         P = P,
+                                         P = P_total,
                                          reactants = reactants,
                                          products = products,
                                          energy = energy,
@@ -746,18 +979,19 @@ def create_network(path_to_setup, T = None, P = None, legacy = True):
         for key in all_species:
             all_species[key].concentration = float(concentrations[key])
 
-        if 'V' in conditions:
-            V = conditions['V']
-        if 'flow_rate' in conditions:
-            flow_rate = conditions['flow_rate']
-        if 'reactor' in conditions:
-            reactor = conditions['reactor']
-        if 'alpha' in conditions:
-            alpha = conditions['alpha']
-        if 'U' in conditions:
-                all_species['U'] = conditions['U']
-                for key in all_rxns:
-                    all_rxns[key].potential = all_species['U']
+        if conditions != None:    
+            if 'V' in conditions:
+                V = conditions['V']
+            if 'flow_rate' in conditions:
+                flow_rate = conditions['flow_rate']
+            if 'reactor' in conditions:
+                reactor = conditions['reactor']
+            if 'alpha' in conditions:
+                alpha = conditions['alpha']
+            if 'U' in conditions:
+                    all_species['U'] = conditions['U']
+                    for key in all_rxns:
+                        all_rxns[key].potential = all_species['U']
 
         print('Successfully built reaction network.')
         
