@@ -182,22 +182,6 @@ class Reaction:
             warnings.warn('Strange combination of frequencies provided, please check')
             return
 
-    # @property
-    # def energy(self):
-    #     return self._energy
-
-    # @energy.setter
-    # def energy(self, energy_update):
-    #     self._energy = energy_update
-
-    # @property
-    # def barrier(self):
-    #     return self._barrier
-
-    # @barrier.setter
-    # def barrier(self, barrier_update):
-    #     self._barrier = barrier_update
-
     @property
     def free_energy(self):
         return self._free_energy
@@ -326,11 +310,7 @@ class CoupledReactions:
 
         self.reac_info = reac_info
 
-        if self.reac_info['reactor'] == 'batch':
-            self.tmax = tmax
-        elif self.reac_info['reactor'] == 'flow':
-            self.tmax = self.reac_info['V']/self.reac_info['flow_rate']
-        
+        self.tmax = tmax
         self.dt = dt
         self.verbose = verbose
         if self.verbose == None:
@@ -406,12 +386,13 @@ class CoupledReactions:
                 s.diff = 0
         return diffs
     
-    def solve(self, tolerance='Auto', product = '', X_rc = None, n_x = None):
+    def solve(self, tolerance='Auto', product = '', X_rc = None, n_x = None, quiet = False):
         """
         main mkm solver block
         """
         
-        print('Integrating balances ...')
+        if quiet == False:
+            print('Integrating balances ... ', end = '')
         
         self._t = np.linspace(start = 0, stop = self.tmax, num = int(1+self.tmax/self.dt))
         self.init_conc = np.array([float(s.concentration) for s in self.all_species])
@@ -603,7 +584,8 @@ class CoupledReactions:
             
             self._n_x = {'species':order_name,'order':ro}
 
-        print('Integration complete.')
+        if quiet == False:
+            print('Integration complete.')
         
         if self.verbose == (('entropy') or ('all')):
             for reaction in self.reac_info['reactions']:
@@ -709,50 +691,14 @@ class CoupledReactions:
         if self.t is None:
             warnings.warn('No action taken. You need to solve the reactions before plotting.')
             return
-        if self.reac_info['reactor'] == 'batch':
-            for i in range(len(self.all_species)):
-                plt.plot(self.t, self.solution[:, i], label=self.all_species[i].name)
-            plt.xlabel('Time [s]')
-            plt.ylabel('Activity or Coverage')
+        for i in range(len(self.all_species)):
+            plt.plot(self.t, self.solution[:, i], label=self.all_species[i].name)
             
-        elif self.reac_info['reactor'] == 'flow':
-            for i in range(len(self.all_species)):
-                plt.plot(self.reac_info['flow_rate']*self.t, self.solution[:, i], label=self.all_species[i].name)
-            plt.xlabel('Reactor Volume [L]')
-            plt.ylabel(r'Partial Pressure [$\frac{P_i}{P_o}$] or Coverage')
+        plt.xlabel('Time [s]')
+        plt.ylabel('Activity or Coverage')
         plt.legend()
         plt.show()
 
-    def plot_tof(self, idx, per_site = True):
-        """
-        quick plotting function for diagnostics
-        
-        idx: string naming species to plot, must match an input file name exactly
-        per_site: boolean, defines units of TOF as per site per sec (True) or per sec (False)  
-        """
-        if self.t is None:
-            warnings.warn('No action taken. You need to solve the reactions before plotting.')
-            return
-        loc = np.argwhere(np.array([s.name for s in self.all_species]) == idx)[0][0]
-        if self.reac_info['reactor'] == 'batch':
-            if per_site == True:
-                plt.semilogy(self.t[:-1],self.tof[:,loc])
-                plt.ylabel('TOF [site$^{-1}$$\cdot$$s^{-1}$]')
-            else:
-                plt.semilogy(self.t[:-1],self.reac_info['site_density']*self.tof[:,loc])
-                plt.ylabel('TOF [$s^{-1}$]')
-            plt.xlabel('Time [s]')
-        elif self.reac_info['reactor'] == 'flow':
-            if per_site == True:
-                plt.plot(self.reac_info['flow_rate']*self.t[:-1],self.tof[:,loc])
-                plt.ylabel('TOF [site$^{-1}$$\cdot$$s^{-1}$]')
-            else:
-                factor = self.reac_info['flow_rate']*self.reac_info['V']*self.reac_info['alpha']*self.reac_info['site_density']/float(len(self._t))
-                plt.semilogy(self.reac_info['flow_rate']*self.t[:-1],factor*self.tof[:,loc])
-                plt.ylabel('TOF [$s^{-1}$]')
-            plt.xlabel('Reactor Volume [L]')
-        plt.show()
-    
     def initial_rate(self, idx):
         """
         quick plotting function for diagnostics
@@ -768,14 +714,13 @@ class CoupledReactions:
         
         idx: string naming species for which to compute transformation, must match an input file name exactly
         n: number of electrons involved in the reaction, corresponding to full reaction
-        A_norm: scale factor to convert data from per ideal surface area to electrode area, if left at default value
-                returns data in current per surface area of ideal unit cell facet
+        A_norm: scale factor to convert 1/s tof data to current per area, should be units of mol sites / area
         """
         if self.t is None:
             warnings.warn('No action taken. You need to solve the reactions before plotting.')
             return
         loc = np.argwhere(np.array([s.name for s in self.all_species]) == idx)[0][0]
-        return n*A_norm*self.reac_info['site_density']*96485000*self.tof[:,loc]
+        return n*A_norm*96485000*self.tof[:,loc]
     
     def tafel(self, idx, n=1, A_norm=1):
         """
@@ -783,256 +728,97 @@ class CoupledReactions:
         
         idx: string naming species for which to compute transformation, must match an input file name exactly
         n: number of electrons involved in the reaction, corresponding to full reaction
-        A_norm: scale factor to convert data from per ideal surface area to electrode area, if left at default value
-                returns data in logarithmic current per surface area of ideal unit cell facet
+        A_norm: scale factor to convert 1/s tof data to current per area, should be units of mol sites / area
         """
         if self.t is None:
             warnings.warn('No action taken. You need to solve the reactions before plotting.')
             return
         loc = np.argwhere(np.array([s.name for s in self.all_species]) == idx)[0][0]
-        return np.log10(n*A_norm*self.reac_info['site_density']*96485000*self.tof[:,loc])
-    
-    def potential(self):
-        """
-        extract potential trace from output data        
-        """
-        if self.t is None:
-            warnings.warn('No action taken. You need to solve the reactions before plotting.')
-            return
-        u_loc = np.argwhere(np.array([s.name for s in self.all_species]) == 'U')[0][0]
-        return self.solution[:,u_loc]
+        return np.log10(n*A_norm*96485000*self.tof[:,loc])
 
-def create_network_legacy(path_to_setup, T = None, P = None):
+def create_network(path_to_setup, T = None, P = None, U = None, quiet = False):
+
+    if quiet == False:
+        print('Reading input file ... ', end = '')
 
     Species.reset()
     V = 1
     flow_rate = 1
     reactor = 'batch'
-    site_density = 0
     alpha = 1
 
     all_species = {}
     all_rxns = {}
-    compositions = []
 
-    with open(path_to_setup) as network:
+    with open(path_to_setup) as input_file:
+        data = load(input_file,Loader=Loader)
+    
+    concentrations = data['concentrations']
+    conditions = None
 
-        for line in network:
-            if not line.strip():
-                pass
-            else:
-                data = line.split()
-                if data[0].startswith('#'):
-                    continue
-                if data[0] == 'T':
-                    if T is None:
-                        print('Temperature read from input file')
-                        T = float(data[2])
-                    else:
-                        print('Two temperatures provided, value from input file ignored')
-                if data[0] == 'V':
-                    V = float(data[2])
-                if data[0] == 'flow_rate':
-                    flow_rate = float(data[2])
-                if data[0] == 'alpha':
-                    alpha = float(data[2])
-                if data[0] == 'reactor':
-                    reactor = str(data[2])
-                    if reactor == 'batch':
-                        print('Input units should be activities for reactants and mol/m^2 for site densities')
-                    if reactor == 'flow':
-                        print('Input units should be partial pressures for reactants and mol/m^2 for site densities')
-                if data[0] == 'U':
-                    all_species['U'] = Species(name='U')
-                    all_species['U'].concentration = float(data[2])
-                if data[0] == 'scan_rate':
-                    all_species['U'].diff = -float(data[2])
-                elif any(('[' or ']') in entry for entry in data):
-                    if T is None:
-                        warnings.warn('No temperature provided')
-                        return
+    if ((type(P) == float) or (type(P) == int)):
+        P_total = P
+    elif P != None:
+        P_total = 0
+        for gas_phase_species in P:
+            P_total += concentrations[gas_phase_species]
+    elif P == None:
+        P_total = 0
 
-                    reactants = []
-                    reactant_stoi = []
-                    products = []
-                    product_stoi = []
-                    p = False
+    for key in data:
+        if key == 'concentrations':
+            concentrations = data[key]
+        elif key == 'conditions':
+            conditions = data[key]
+        else:
+            reactants = []
+            products = []
+            reac = try_except(data[key], 'reactants')
+            prod = try_except(data[key], 'products')
+            for species in reac:
+                all_species[species] = Species(species)
+                reactants.append(all_species[species])
+            for species in prod:
+                all_species[species] = Species(species)
+                products.append(all_species[species])
+            energy = try_except(data[key], 'energy')
+            barrier = try_except(data[key], 'barrier')
+            vib_i = try_except(data[key], 'vib_i')
+            vib_t = try_except(data[key], 'vib_t')
+            vib_f = try_except(data[key], 'vib_f')
+            dedu = try_except(data[key], 'dedu')
+            dbdu = try_except(data[key], 'dbdu')
+            potential = U
+            reactant_stoi = try_except(data[key], 'reactant_stoi')
+            product_stoi = try_except(data[key], 'product_stoi')
+            sticking = try_except(data[key], 'sticking')
+            A_ads = try_except(data[key], 'A_ads')
+            mass = try_except(data[key], 'mass')
 
-                    for entry in data:
-                        try:
-                            species = re.search(r'\[([A-Za-z0-9\*\+\-_]+)\]',entry).group(1)
-                            try:
-                                stoi = re.search(r'([0-9_]+)\[',entry).group(1)
-                            except AttributeError:
-                                stoi = 1
-                            if species == '*':
-                                species = 'sites'
-                            if '*' in species:
-                                species = re.sub('\*','_s',species)                           
-                            if p == False:
-                                all_species[f'{species}'] = Species(species)
-                                reactants.append(all_species[f'{species}'])
-                                reactant_stoi.append(float(stoi))
-                            elif p == True:
-                                all_species[f'{species}'] = Species(species)
-                                products.append(all_species[f'{species}'])
-                                product_stoi.append(float(stoi))
-                        except AttributeError:
-                            if entry == '->':
-                                p = True
-                    
-                    if 'U' in all_species:
-                        all_rxns[f'rxn{int(len(all_rxns))}'] = Reaction(name = f'rxn{len(all_rxns)}',
-                                                                        T = T, P = P, 
-                                                                        reactants = reactants,
-                                                                        products = products,
-                                                                        potential = all_species['U'],
-                                                                        reactant_stoi = reactant_stoi,
-                                                                        product_stoi = product_stoi)
-                    elif 'U' not in all_species:
-                        all_rxns[f'rxn{int(len(all_rxns))}'] = Reaction(name = f'rxn{len(all_rxns)}',
-                                                                        T = T, P = P,
-                                                                        reactants = reactants,
-                                                                        products = products,
-                                                                        reactant_stoi = reactant_stoi,
-                                                                        product_stoi = product_stoi)
+            all_rxns[key] = Reaction(name = key,
+                                        T = T,
+                                        P = P_total,
+                                        reactants = reactants,
+                                        products = products,
+                                        energy = energy,
+                                        barrier = barrier,
+                                        vib_i = vib_i,
+                                        vib_t = vib_t,
+                                        vib_f = vib_f,
+                                        dedu = dedu,
+                                        dbdu = dbdu,
+                                        potential = potential,
+                                        reactant_stoi = reactant_stoi,
+                                        product_stoi = product_stoi,
+                                        sticking = sticking,
+                                        A_ads = A_ads,
+                                        mass = mass)
+                        
+    
+    for key in all_species:
+        all_species[key].concentration = float(concentrations[key])
 
-                elif data[0] == 'vib_i':
-                    all_rxns[f'rxn{int(len(all_rxns)-1)}'].vib_i = data[2].split(',')
-                elif data[0] == 'vib_t':
-                    all_rxns[f'rxn{int(len(all_rxns)-1)}'].vib_t = data[2].split(',')
-                elif data[0] == 'vib_f':
-                    all_rxns[f'rxn{int(len(all_rxns)-1)}'].vib_f = data[2].split(',')
-                elif data[0] == 'energy':
-                    all_rxns[f'rxn{int(len(all_rxns)-1)}'].energy = float(data[2])
-                elif data[0] == 'barrier':
-                    all_rxns[f'rxn{int(len(all_rxns)-1)}'].barrier = float(data[2])
-                elif data[0] == 'dedu':
-                    all_rxns[f'rxn{int(len(all_rxns)-1)}'].dedu = float(data[2])
-                elif data[0] == 'dbdu':
-                    all_rxns[f'rxn{int(len(all_rxns)-1)}'].dbdu = float(data[2])
-                elif '_o' in data[0]:
-                    compositions.append(data)
-
-        for species in all_species:
-            for i in np.arange(len(compositions)):
-                if species == re.search(r'^(.+?)\_o',compositions[i][0]).group(1):
-                    if reactor == 'batch':
-                        all_species[f'{species}'].concentration = float(compositions[i][2])
-                    if reactor == 'flow':
-                        all_species[f'{species}'].concentration = float(compositions[i][2])
-                
-                elif 'sites' == re.search(r'^(.+?)\_o',compositions[i][0]).group(1):
-                    site_density = float(compositions[i][2])
-                    if reactor == 'batch':
-                        all_species['sites'].concentration = float(compositions[i][2])/site_density
-                    elif reactor == 'flow':
-                        all_species['sites'].concentration = float(compositions[i][2])/site_density
-
-    print('Successfully built reaction network.')
-
-    return all_species, {'reactions':all_rxns,'reactor':reactor,'V':V,'flow_rate':flow_rate,'alpha':alpha,'site_density':site_density}
-
-def create_network(path_to_setup, T = None, P = None, U = None, legacy = True):
-
-    print('Reading input file ...')
-
-    if legacy == True:
-        species, network = create_network_legacy(path_to_setup, T)
-        return species, network
-
-    elif legacy == False:
-        Species.reset()
-        V = 1
-        flow_rate = 1
-        reactor = 'batch'
-        alpha = 1
-
-        all_species = {}
-        all_rxns = {}
-
-        with open(path_to_setup) as input_file:
-            data = load(input_file,Loader=Loader)
-        
-        concentrations = data['concentrations']
-        conditions = None
-
-        if ((type(P) == float) or (type(P) == int)):
-            P_total = P
-        elif P != None:
-            P_total = 0
-            for gas_phase_species in P:
-                P_total += concentrations[gas_phase_species]
-        elif P == None:
-            P_total = 0
-
-        for key in data:
-            if key == 'concentrations':
-                concentrations = data[key]
-            elif key == 'conditions':
-                conditions = data[key]
-            else:
-                reactants = []
-                products = []
-                reac = try_except(data[key], 'reactants')
-                prod = try_except(data[key], 'products')
-                for species in reac:
-                    all_species[species] = Species(species)
-                    reactants.append(all_species[species])
-                for species in prod:
-                    all_species[species] = Species(species)
-                    products.append(all_species[species])
-                energy = try_except(data[key], 'energy')
-                barrier = try_except(data[key], 'barrier')
-                vib_i = try_except(data[key], 'vib_i')
-                vib_t = try_except(data[key], 'vib_t')
-                vib_f = try_except(data[key], 'vib_f')
-                dedu = try_except(data[key], 'dedu')
-                dbdu = try_except(data[key], 'dbdu')
-                potential = U
-                reactant_stoi = try_except(data[key], 'reactant_stoi')
-                product_stoi = try_except(data[key], 'product_stoi')
-                sticking = try_except(data[key], 'sticking')
-                A_ads = try_except(data[key], 'A_ads')
-                mass = try_except(data[key], 'mass')
-
-                all_rxns[key] = Reaction(name = key,
-                                         T = T,
-                                         P = P_total,
-                                         reactants = reactants,
-                                         products = products,
-                                         energy = energy,
-                                         barrier = barrier,
-                                         vib_i = vib_i,
-                                         vib_t = vib_t,
-                                         vib_f = vib_f,
-                                         dedu = dedu,
-                                         dbdu = dbdu,
-                                         potential = potential,
-                                         reactant_stoi = reactant_stoi,
-                                         product_stoi = product_stoi,
-                                         sticking = sticking,
-                                         A_ads = A_ads,
-                                         mass = mass)
-                         
-        
-        for key in all_species:
-            all_species[key].concentration = float(concentrations[key])
-
-        if conditions != None:    
-            if 'V' in conditions:
-                V = conditions['V']
-            if 'flow_rate' in conditions:
-                flow_rate = conditions['flow_rate']
-            if 'reactor' in conditions:
-                reactor = conditions['reactor']
-            if 'alpha' in conditions:
-                alpha = conditions['alpha']
-            if 'U' in conditions:
-                all_species['U'] = conditions['U']
-                for key in all_rxns:
-                    all_rxns[key].potential = all_species['U']
-
+    if quiet == False:
         print('Successfully built reaction network.')
-        
-        return all_species, {'reactions':all_rxns,'V':V,'flow_rate':flow_rate,'reactor':reactor,'alpha':alpha}
+    
+    return all_species, {'reactions':all_rxns}
