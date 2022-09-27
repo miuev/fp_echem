@@ -1,0 +1,27 @@
+# Example input file for electrochemical Volmer-Tafel HER
+
+volmer:
+  reactants: [H+, s]
+  reactant_stoi: [1, 1]
+  products: [Hs]
+  product_stoi: [1]
+  energy: 0.2
+  barrier: 0.25
+  dedu: 0.7
+  dbdu: 0.5
+
+tafel:
+  reactants: [Hs]
+  reactant_stoi: [2]
+  products: [H2, s]
+  product_stoi: [1, 2]
+  energy: -0.8
+  barrier: 0.9
+  dedu: 0.0
+  dbdu: 0.0
+
+concentrations:
+  H+: 0.3
+  Hs: 0
+  H2: 0
+  s: 1

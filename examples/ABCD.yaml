@@ -1,0 +1,23 @@
+# Example input file for generic homogeneous thermochemical reaction
+
+ab_c:
+  reactants: [A, B]
+  reactant_stoi: [2, 1]
+  products: [C]
+  product_stoi: [2]
+  energy: -0.2
+  barrier: 0.7
+
+ca_d:
+  reactants: [C, A]
+  reactant_stoi: [1, 1]
+  products: [D]
+  product_stoi: [1]
+  energy: -0.1
+  barrier: 0.4
+
+concentrations:
+  A: 0.5
+  B: 0.5
+  C: 0
+  D: 0
