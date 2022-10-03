@@ -44,7 +44,9 @@ concentrations:
   s: 1 
 ```
 
-
 ### TO-DO
 - include customizable ads-ads interactions
 - add degree of rate control, reaction order, apparent activation energy documentation (functionality is already included)
+
+
+Note: The current code version has been updated significantly from that used in https://doi.org/10.1021/jacs.2c00825.
