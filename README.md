@@ -13,6 +13,7 @@ Examples are included [here](examples/usage_examples.ipynb), in `fp_echem/exampl
 Some important syntax notes are that reactants, products, and their stoichiometries should always be enclosed in `[]`.
 Only electrons (written as `e-`) in electrochemical reactions should be left out of brackets.
 Underneath each new reaction, the energies, charge transfer coefficients, and other reaction information can be listed.
+Mind that the charge transfer coefficients should be positive for reduction reactions and negative for oxidation reactions.
 At the end of the file, initial stoichiometries can be given for each species.
 Here is an example input file for the electrochemical hydrogen evolution reaction following the Volmer-Tafel mechanism with fictitious energetics and charge transfer coefficients.
 
