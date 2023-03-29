@@ -68,7 +68,8 @@ class Reaction:
                  vib_i: List[float] = None, vib_t: List[float] = None, vib_f: List[float] = None,
                  dedu: float = 0.0, dbdu: float = 0.0, potential: float = None,
                  reactant_stoi: List[float] = None, product_stoi: List[float] = None,
-                 sticking: float = 1, A_ads: float = None, mass: float = None) -> None:
+                 sticking: float = 1, A_ads: float = None, mass: float = None,
+                 vib_units: str = 'THz') -> None:
 
         self.name = name
         self.T = T
@@ -78,6 +79,7 @@ class Reaction:
         self.vib_i = vib_i
         self.vib_t = vib_t
         self.vib_f = vib_f
+        self.vib_units = vib_units
         self.energy = energy
         self.barrier = barrier
         self.dedu = dedu
@@ -106,37 +108,45 @@ class Reaction:
                 self._free_energy = self.energy + zpets(name = self.name,
                                                         T = self.T,
                                                         P = self.P,
-                                                        vibs = self.vib_f) \
+                                                        vibs = self.vib_f,
+                                                        vib_units = self.vib_units) \
                                                 - zpets(name = self.name,
                                                         T = self.T,
                                                         P = self.P,
-                                                        vibs = self.vib_i)
+                                                        vibs = self.vib_i,
+                                                        vib_units = self.vib_units)
                 self._free_barrier = self.energy + zpets(name = self.name,
                                                         T = self.T,
                                                         P = self.P,
-                                                        vibs = self.vib_f) \
+                                                        vibs = self.vib_f,
+                                                        vib_units = self.vib_units) \
                                                 - zpets(name = self.name,
                                                         T = self.T,
                                                         P = self.P,
-                                                        vibs = self.vib_i)
+                                                        vibs = self.vib_i,
+                                                        vib_units = self.vib_units)
             elif (self.vib_i != None) and (self.vib_t != None) and (self.vib_f != None):
             # case of supplying electronic energies of activated process
                 self._free_energy = self.energy + zpets(name = self.name,
                                                         T = self.T,
                                                         P = self.P,
-                                                        vibs = self.vib_f) \
+                                                        vibs = self.vib_f,
+                                                        vib_units = self.vib_units) \
                                                 - zpets(name = self.name,
                                                         T = self.T,
                                                         P = self.P,
-                                                        vibs = self.vib_i)
+                                                        vibs = self.vib_i,
+                                                        vib_units = self.vib_units)
                 self._free_barrier = self.barrier + zpets(name = self.name,
                                                         T = self.T,
                                                         P = self.P,
-                                                        vibs = self.vib_t) \
+                                                        vibs = self.vib_t,
+                                                        vib_units = self.vib_units) \
                                                 - zpets(name = self.name,
                                                         T = self.T,
                                                         P = self.P,
-                                                        vibs = self.vib_i)
+                                                        vibs = self.vib_i,
+                                                        vib_units = self.vib_units)
         elif self.potential != None:
             if (self.vib_i == None) and (self.vib_t == None) and (self.vib_f == None):
             # case of supplying free energies
@@ -147,37 +157,45 @@ class Reaction:
                 self._free_energy = self.energy + zpets(name = self.name,
                                                         T = self.T,
                                                         P = self.P,
-                                                        vibs = self.vib_f) \
+                                                        vibs = self.vib_f,
+                                                        vib_units = self.vib_units) \
                                                 - zpets(name = self.name,
                                                         T = self.T,
                                                         P = self.P,
-                                                        vibs = self.vib_i) + self.potential*self.dedu
+                                                        vibs = self.vib_i,
+                                                        vib_units = self.vib_units) + self.potential*self.dedu
                 self._free_barrier = self.energy + zpets(name = self.name,
                                                         T = self.T,
                                                         P = self.P,
-                                                        vibs = self.vib_f) \
+                                                        vibs = self.vib_f,
+                                                        vib_units = self.vib_units) \
                                                 - zpets(name = self.name,
                                                         T = self.T,
                                                         P = self.P,
-                                                        vibs = self.vib_i) + self.potential*self.dedu
+                                                        vibs = self.vib_i,
+                                                        vib_units = self.vib_units) + self.potential*self.dedu
             elif (self.vib_i != None) and (self.vib_t != None) and (self.vib_f != None):
             # case of supplying electronic energies of activated process
                 self._free_energy = self.energy + zpets(name = self.name,
                                                         T = self.T,
                                                         P = self.P,
-                                                        vibs = self.vib_f) \
+                                                        vibs = self.vib_f,
+                                                        vib_units = self.vib_units) \
                                                 - zpets(name = self.name,
                                                         T = self.T,
                                                         P = self.P,
-                                                        vibs = self.vib_i) + self.potential*self.dedu
+                                                        vibs = self.vib_i,
+                                                        vib_units = self.vib_units) + self.potential*self.dedu
                 self._free_barrier = self.barrier + zpets(name = self.name,
                                                         T = self.T,
                                                         P = self.P,
-                                                        vibs = self.vib_t) \
+                                                        vibs = self.vib_t,
+                                                        vib_units = self.vib_units) \
                                                 - zpets(name = self.name,
                                                         T = self.T,
                                                         P = self.P,
-                                                        vibs = self.vib_i) + self.potential*self.dbdu
+                                                        vibs = self.vib_i,
+                                                        vib_units = self.vib_units) + self.potential*self.dbdu
         else:
             warnings.warn('Strange combination of frequencies provided, please check')
             return
@@ -197,22 +215,26 @@ class Reaction:
             self._free_energy = self.energy + zpets(name = self.name,
                                                     T = self.T,
                                                     P = pressure_update,
-                                                    vibs = self.vib_f) \
+                                                    vibs = self.vib_f,
+                                                    vib_units = self.vib_units) \
                                             - zpets(name = self.name,
                                                     T = self.T,
                                                     P = pressure_update,
-                                                    vibs = self.vib_i)
+                                                    vibs = self.vib_i,
+                                                    vib_units = self.vib_units)
 
         elif (self.vib_i != None) and (self.vib_t != None) and (self.vib_f != None):
         # case of supplying electronic energies of activated process
             self._free_energy = self.energy + zpets(name = self.name,
                                                     T = self.T,
                                                     P = pressure_update,
-                                                    vibs = self.vib_f) \
+                                                    vibs = self.vib_f,
+                                                    vib_units = self.vib_units) \
                                             - zpets(name = self.name,
                                                     T = self.T,
                                                     P = pressure_update,
-                                                    vibs = self.vib_i)
+                                                    vibs = self.vib_i,
+                                                    vib_units = self.vib_units)
 
     @property
     def free_barrier(self):
@@ -229,22 +251,26 @@ class Reaction:
             self._free_barrier = self.energy + zpets(name = self.name,
                                                      T = self.T,
                                                      P = pressure_update,
-                                                     vibs = self.vib_f) \
+                                                     vibs = self.vib_f,
+                                                     vib_units = self.vib_units) \
                                              - zpets(name = self.name,
                                                      T = self.T,
                                                      P = pressure_update,
-                                                     vibs = self.vib_i)
+                                                     vibs = self.vib_i,
+                                                     vib_units = self.vib_units)
     
         elif (self.vib_i != None) and (self.vib_t != None) and (self.vib_f != None):
             # case of supplying electronic energies of activated process
             self._free_barrier = self.barrier + zpets(name = self.name,
                                                       T = self.T,
                                                       P = pressure_update,
-                                                      vibs = self.vib_t) \
+                                                      vibs = self.vib_t,
+                                                      vib_units = self.vib_units) \
                                               - zpets(name = self.name,
                                                       T = self.T,
                                                       P = pressure_update,
-                                                      vibs = self.vib_i)
+                                                      vibs = self.vib_i,
+                                                      vib_units = self.vib_units)
 
     @property
     def actf(self):
@@ -595,6 +621,7 @@ class CoupledReactions:
                           T = self.reac_info['reactions'][reaction].T,
                           P = self.reac_info['reactions'][reaction].P,
                           vibs = self.reac_info['reactions'][reaction].vib_i,
+                          vib_units = self.reac_info['reactions'][reaction].vib_units,
                           verbose = self.verbose)
                 if self.reac_info['reactions'][reaction].vib_t:
                     print('Transition state', end = ' ')
@@ -602,6 +629,7 @@ class CoupledReactions:
                           T = self.reac_info['reactions'][reaction].T,
                           P = self.reac_info['reactions'][reaction].P,
                           vibs = self.reac_info['reactions'][reaction].vib_t,
+                          vib_units = self.reac_info['reactions'][reaction].vib_units,
                           verbose = self.verbose)
                 if self.reac_info['reactions'][reaction].vib_f:
                     print('Final state', end = ' ')
@@ -609,6 +637,7 @@ class CoupledReactions:
                           T = self.reac_info['reactions'][reaction].T,
                           P = self.reac_info['reactions'][reaction].P,
                           vibs = self.reac_info['reactions'][reaction].vib_f,
+                          vib_units = self.reac_info['reactions'][reaction].vib_units,
                           verbose = self.verbose)
 
         if self.verbose == (('ks') or ('all')):
@@ -736,7 +765,7 @@ class CoupledReactions:
         loc = np.argwhere(np.array([s.name for s in self.all_species]) == idx)[0][0]
         return np.log10(n*A_norm*96485000*self.tof[:,loc])
 
-def create_network(path_to_setup, T = None, P = None, U = None, quiet = False):
+def create_network(path_to_setup, T = None, P = None, U = None, vib_units = 'THz', quiet = False):
 
     if quiet == False:
         print('Reading input file ... ', end = '')
@@ -805,6 +834,7 @@ def create_network(path_to_setup, T = None, P = None, U = None, quiet = False):
                                         vib_i = vib_i,
                                         vib_t = vib_t,
                                         vib_f = vib_f,
+                                        vib_units = vib_units,
                                         dedu = dedu,
                                         dbdu = dbdu,
                                         potential = potential,

@@ -6,7 +6,7 @@ from ase.io import read
 
 import warnings
 
-def zpets(name,T,P = None,vibs = None,verbose = None):
+def zpets(name, T, P = None, vibs = None, vib_units = 'THz', verbose = None):
     
     if vibs == None:
         warnings.warn('No vibrational modes provided, check cases.')
@@ -16,7 +16,12 @@ def zpets(name,T,P = None,vibs = None,verbose = None):
     h = 4.135667696*10**(-15) # eV*s
     
     if 'gas' in vibs:
-        vib_energies = np.array(vibs['gas']['vibs'])*1E12*h
+        if vib_units == 'THz':
+            vib_energies = np.array(vibs['gas']['vibs'])*1E12*h
+        elif vib_units == 'meV':
+            vib_energies = np.array(vibs['gas']['vibs'])*1E-3
+        else:
+            warnings.warn('Unsupported vibrational energy units, please use \'THz\' or \'meV\'.')
         geometry = vibs['gas']['geometry']
         try:
             atoms = molecule(vibs['gas']['atoms'])
@@ -40,7 +45,12 @@ def zpets(name,T,P = None,vibs = None,verbose = None):
             print('total gas phase entropy for {} at {} K = {} eV/K'.format(name,T,s_vib))
     
     if 'ads' in vibs:
-        vib_energies = np.array(vibs['ads']['vibs'])*1E12*h
+        if vib_units == 'THz':
+            vib_energies = np.array(vibs['ads']['vibs'])*1E12*h
+        elif vib_units == 'meV':
+            vib_energies = np.array(vibs['ads']['vibs'])*1E-3
+        else:
+            warnings.warn('Unsupported vibrational energy units, please use \'THz\' or \'meV\'.')
         thermo = HarmonicThermo(vib_energies = vib_energies)
 
         u_vib = thermo.get_internal_energy(T, verbose=False)
