@@ -14,16 +14,17 @@ from fpec.tools import try_except
 
 import matplotlib.pyplot as plt
 import numpy as np
-# from scipy.integrate.odepack import odeint
 
-# alternative ODE solver with more methods
 from scipy.integrate import solve_ivp
 
-# Setting constants and useful properties
+# Setting constants
 k_b = 8.617333262145E-05 # Boltzmann constant in eV/K
 h = 4.135667696E-15 # Planck constant in eV*Hz-1
 
 class MetaSpecies(type):
+    '''
+    template for Species class singletons
+    '''
     _unique_species = {}
     def __call__(cls, *args, **kwargs):
         # get name from args or kwargs (depending on where it is)
@@ -38,6 +39,9 @@ class MetaSpecies(type):
 
 @dataclass
 class Species(metaclass=MetaSpecies):
+    '''
+    class for each individual chemical species involved in reaction
+    '''
     name: str
     concentration: float = 0
     diff: float = 0
@@ -63,6 +67,10 @@ class Species(metaclass=MetaSpecies):
         return self.concentration ** other
 
 class Reaction:
+    '''
+    stores information regarding each individual elementary reaction
+    holds rate constant calculators as callable methods
+    '''
     def __init__(self, name: str, T: float, P: float, reactants: List[Species], products: List[Species],
                  energy: float = 0.0, barrier: float = 0.0,
                  vib_i: List[float] = None, vib_t: List[float] = None, vib_f: List[float] = None,
@@ -331,6 +339,10 @@ class Reaction:
             p.diff += diff*s
 
 class CoupledReactions:
+    '''
+    a class which takes reaction network information and integration parameters as inputs
+    this class holds methods to solve complete microkinetic models and compute performance indicators
+    '''
     def __init__(self, reac_info: Dict[str, Reaction], fixed: list[str] = [''],
                  tmax: float = 60, dt: float = 0.01, solver = 'BDF', verbose = None) -> None:
 
@@ -413,9 +425,9 @@ class CoupledReactions:
         return diffs
     
     def solve(self, tolerance='Auto', product = '', X_rc = None, n_x = None, quiet = False):
-        """
+        '''
         main mkm solver block
-        """
+        '''
         
         if quiet == False:
             print('Integrating balances ... ', end = '')
@@ -438,12 +450,10 @@ class CoupledReactions:
             atol = tolerance[0]
             rtol = tolerance[1]
 
-        # old solver
-        # self._solution = odeint(self._objective, self.init_conc, self._t, atol=atol)
-
         # integrating mass balances
         solution = solve_ivp(fun = self._objective, t_span = (0,self.tmax), y0 = self.init_conc, t_eval = self.t,
                              method = self.solver, atol = atol, rtol = rtol)
+       
         self._solution = solution.y.T
         
         self._tof = self.calculate_tof(self.product)
@@ -613,6 +623,7 @@ class CoupledReactions:
         if quiet == False:
             print('Integration complete.')
         
+        # passing 'entropy' or 'ks' or 'all' to 'verbose' will print diagnostic information
         if self.verbose == (('entropy') or ('all')):
             for reaction in self.reac_info['reactions']:
                 if self.reac_info['reactions'][reaction].vib_i:
@@ -713,10 +724,9 @@ class CoupledReactions:
         return tof
 
     def plot_results(self):
-        """
+        '''
         quick plotting function for diagnostics
-        """
-
+        '''
         if self.t is None:
             warnings.warn('No action taken. You need to solve the reactions before plotting.')
             return
@@ -729,22 +739,22 @@ class CoupledReactions:
         plt.show()
 
     def initial_rate(self, idx):
-        """
+        '''
         quick plotting function for diagnostics
         
         idx: string naming species for which to return initial rate, must match an input file name exactly
-        """
+        '''
         loc = np.argwhere(np.array([s.name for s in self.all_species]) == idx)[0][0]
         print(self.tof[0,loc])
     
     def current(self, idx, n=1, A_norm=1):
-        """
+        '''
         helper function to compute current data
         
         idx: string naming species for which to compute transformation, must match an input file name exactly
         n: number of electrons involved in the reaction, corresponding to full reaction
         A_norm: scale factor to convert 1/s tof data to current per area, should be units of mol sites / area
-        """
+        '''
         if self.t is None:
             warnings.warn('No action taken. You need to solve the reactions before plotting.')
             return
@@ -752,13 +762,13 @@ class CoupledReactions:
         return n*A_norm*96485000*self.tof[:,loc]
     
     def tafel(self, idx, n=1, A_norm=1):
-        """
+        '''
         helper function to compute Tafel space data, i.e. log10(current)
         
         idx: string naming species for which to compute transformation, must match an input file name exactly
         n: number of electrons involved in the reaction, corresponding to full reaction
         A_norm: scale factor to convert 1/s tof data to current per area, should be units of mol sites / area
-        """
+        '''
         if self.t is None:
             warnings.warn('No action taken. You need to solve the reactions before plotting.')
             return
@@ -766,7 +776,10 @@ class CoupledReactions:
         return np.log10(n*A_norm*96485000*self.tof[:,loc])
 
 def create_network(path_to_setup, T = None, P = None, U = None, vib_units = 'THz', quiet = False):
-
+    '''
+    this function reads .yaml files which contain relevant reaction network definitions
+    '''
+    
     if quiet == False:
         print('Reading input file ... ', end = '')
 

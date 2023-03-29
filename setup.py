@@ -15,7 +15,7 @@ setuptools.setup(
     name="fp_echem",
     version=__version__,
     author="Evan Miu",
-    author_email="evm@pitt.edu",
+    author_email="miuev.run@gmail.com",
     description="first-principles current-potential relationships",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -27,5 +27,8 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.8',
-    install_requires=['numpy>=1.21.0']
+    install_requires=['numpy>=1.21.0',
+                      'matplotlib>=3.6.0', 
+                      'scipy>=1.9.1', 
+                      'pyyaml>=6.0.0']
 )

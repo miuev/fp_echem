@@ -85,7 +85,7 @@ def run(rxn = surf_rxn, initial_comps = surf_initial_comps, t = t):
 
 def test_network_solution():
     # reading in from .txt setup should yield same solution as hard code
-    a, b = fpec.rxn_network.create_network(pathlib.Path(__file__).parent / 'reactions.yaml',T=298.15,legacy=False)
+    a, b = fpec.rxn_network.create_network(pathlib.Path(__file__).parent / 'reactions.yaml',T=298.15)
     coupled_rxns = fpec.rxn_network.CoupledReactions(b)
     coupled_rxns.solve()
     cls_sol = coupled_rxns.solution
@@ -94,7 +94,7 @@ def test_network_solution():
 
 def test_surface_solution():
     # testing .yaml input file performance
-    a, b = fpec.rxn_network.create_network(pathlib.Path(__file__).parent / 'surface_rxn.yaml',T=298.15,P=101325,legacy=False)
+    a, b = fpec.rxn_network.create_network(pathlib.Path(__file__).parent / 'surface_rxn.yaml',T=298.15,P=101325)
     coupled_rxns = fpec.rxn_network.CoupledReactions(b)
     coupled_rxns.solve()
     cls_sol = coupled_rxns.solution
